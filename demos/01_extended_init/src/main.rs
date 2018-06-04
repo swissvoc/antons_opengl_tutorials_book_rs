@@ -4,7 +4,7 @@ extern crate chrono;
 
 
 use glfw::Context;
-use gl::types::{GLubyte, GLfloat, GLuint, GLsizei, GLsizeiptr, GLchar, GLvoid};
+use gl::types::{GLubyte, GLfloat, GLuint, GLsizei, GLsizeiptr, GLchar, GLvoid, GLint, GLenum};
 use chrono::prelude::Utc;
 
 use std::string::String;
@@ -83,6 +83,70 @@ fn gl_log_err(message: &str) -> bool {
 fn glfw_error_callback(error: glfw::Error, description: String, error_count: &Cell<usize>) {
     gl_log_err(&format!("GLFW ERROR: code {} msg: {}", error, description));
     error_count.set(error_count.get() + 1);
+}
+
+// Keep track of window size for things like the viewport and the mouse cursor
+static mut g_gl_width: usize = 640;
+static mut g_gl_height: usize = 480;
+
+// We will tell GLFW to run this function whenever the framebuffer size is changed.
+fn glfw_framebuffer_size_callback(window: &glfw::Window, width: usize, height: usize) {
+    unsafe {
+        g_gl_width = width;
+        g_gl_height = height;
+    }
+    println!("width {} height {}", width, height);
+    /* Update any perspective matrices used here */
+}
+
+// We can use a function like this to print some GL capabilities of our adapter
+// to the log file. This is handy if we want to debug problems on other people's computers.
+fn log_gl_params() {
+    let params: [GLenum; 12] = [
+        gl::MAX_COMBINED_TEXTURE_IMAGE_UNITS,
+        gl::MAX_CUBE_MAP_TEXTURE_SIZE,
+        gl::MAX_DRAW_BUFFERS,
+        gl::MAX_FRAGMENT_UNIFORM_COMPONENTS,
+        gl::MAX_TEXTURE_IMAGE_UNITS,
+        gl::MAX_TEXTURE_SIZE,
+        gl::MAX_VARYING_FLOATS,
+        gl::MAX_VERTEX_ATTRIBS,
+        gl::MAX_VERTEX_TEXTURE_IMAGE_UNITS,
+        gl::MAX_VERTEX_UNIFORM_COMPONENTS,
+        gl::MAX_VIEWPORT_DIMS,
+        gl::STEREO,
+    ];
+    let names: [&str; 12] = [
+        "GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS",
+        "GL_MAX_CUBE_MAP_TEXTURE_SIZE",
+        "GL_MAX_DRAW_BUFFERS",
+        "GL_MAX_FRAGMENT_UNIFORM_COMPONENTS",
+        "GL_MAX_TEXTURE_IMAGE_UNITS",
+        "GL_MAX_TEXTURE_SIZE",
+        "GL_MAX_VARYING_FLOATS",
+        "GL_MAX_VERTEX_ATTRIBS",
+        "GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS",
+        "GL_MAX_VERTEX_UNIFORM_COMPONENTS",
+        "GL_MAX_VIEWPORT_DIMS",
+        "GL_STEREO",
+    ];
+    gl_log("GL Context Params:\n");
+    unsafe {
+        // integers - only works if the order is 0-10 integer return types
+        for i in 0..10 {
+            let mut v = 0;
+            gl::GetIntegerv(params[i], &mut v);
+            gl_log(&format!("{} {}", names[i], v));
+        }
+        // others
+        let mut v: [GLint; 2] = [0; 2];
+        gl::GetIntegerv(params[10], &mut v[0]);
+        gl_log(&format!("{} {} {}\n", names[10], v[0], v[1]));
+        let mut s = 0;
+        gl::GetBooleanv(params[11], &mut s);
+        gl_log(&format!("{} {}", names[11], s as usize));
+        gl_log("-----------------------------");
+    }
 }
 
 fn main() {
