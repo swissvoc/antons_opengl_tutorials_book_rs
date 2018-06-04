@@ -12,7 +12,6 @@ use std::mem;
 use std::ptr;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::io;
 
 
 const GL_LOG_FILE: &str = "gl.log";
@@ -32,11 +31,9 @@ fn glubyte_ptr_to_string(cstr: *const GLubyte) -> String {
 fn restart_gl_log() -> bool {
     let file = File::create(GL_LOG_FILE);
     if file.is_err() {
-        write!(
-            io::stderr(),
-            "ERROR: The GL_LOG_FILE log file {} could not be opened for writing.",
-            GL_LOG_FILE
-        ).unwrap();
+        eprintln!(
+            "ERROR: The GL_LOG_FILE log file {} could not be opened for writing.", GL_LOG_FILE
+        );
 
         return false;
     }
