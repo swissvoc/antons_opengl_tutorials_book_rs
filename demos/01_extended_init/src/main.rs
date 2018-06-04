@@ -10,12 +10,15 @@ use std::string::String;
 use std::ffi::CStr;
 use std::mem;
 use std::ptr;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::io;
 
 
 const GL_LOG_FILE: &str = "gl.log";
+
+
+static previous_seconds: f64 = 0.;
 
 
 #[inline]
@@ -47,6 +50,23 @@ fn restart_gl_log() -> bool {
 
     return true;
 }
+
+/// Add a message to the log file.
+fn gl_log(args: &[&str]) -> bool {
+    let file = OpenOptions::new().write(true).append(true).open(GL_LOG_FILE);
+    if file.is_err() {
+        eprintln!("ERROR: Could not open GL_LOG_FILE {} file for appending.", GL_LOG_FILE);
+        return false;
+    }
+
+    let mut file = file.unwrap();
+    for arg in args {
+        writeln!(file, "{}", arg).unwrap();
+    }
+
+    return true;
+}
+
 
 fn main() {
     // Start a GL context and OS window using the GLFW helper library.
