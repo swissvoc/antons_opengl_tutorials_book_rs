@@ -13,13 +13,14 @@ use std::mem;
 use std::ptr;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::fmt::Write as FWrite;
 use std::cell::Cell;
 
 
 const GL_LOG_FILE: &str = "gl.log";
 
 
-static previous_seconds: f64 = 0.;
+static mut previous_seconds: f64 = 0.;
 
 
 #[inline]
@@ -146,6 +147,28 @@ fn log_gl_params() {
         gl::GetBooleanv(params[11], &mut s);
         gl_log(&format!("{} {}", names[11], s as usize));
         gl_log("-----------------------------");
+    }
+}
+
+// We will use this function to update the window title with a frame rate.
+fn _update_fps_counter(glfw: &glfw::Glfw, window: &mut glfw::Window) {
+    let mut tmp: String = String::new();
+
+    static mut frame_count: usize = 0;
+
+    let current_seconds = glfw.get_time();
+    unsafe {
+        let elapsed_seconds = current_seconds - previous_seconds;
+        if elapsed_seconds > 0.25 {
+            previous_seconds = current_seconds;
+
+            let fps = frame_count as f64 / elapsed_seconds;
+            write!(&mut tmp, "OpenGL @ fps: {:.2}", fps).unwrap();
+            window.set_title(&tmp);
+            frame_count = 0;
+        }
+
+        frame_count += 1;
     }
 }
 
