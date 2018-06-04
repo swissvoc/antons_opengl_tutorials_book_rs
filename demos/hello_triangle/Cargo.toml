@@ -1,9 +1,0 @@
-[package]
-name = "hello_triangle"
-version = "0.1.0"
-authors = ["Stallmanifold <stallmanifold@gmail.com>"]
-
-[dependencies]
-glfw = "0.23.0"
-gl = "0.10.0"
-
