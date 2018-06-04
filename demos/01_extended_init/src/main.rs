@@ -51,7 +51,7 @@ fn restart_gl_log() -> bool {
 }
 
 /// Add a message to the log file.
-fn gl_log(args: &[&str]) -> bool {
+fn gl_log(message: &str) -> bool {
     let file = OpenOptions::new().write(true).append(true).open(GL_LOG_FILE);
     if file.is_err() {
         eprintln!("ERROR: Could not open GL_LOG_FILE {} file for appending.", GL_LOG_FILE);
@@ -59,9 +59,7 @@ fn gl_log(args: &[&str]) -> bool {
     }
 
     let mut file = file.unwrap();
-    for arg in args {
-        writeln!(file, "{}", arg).unwrap();
-    }
+    writeln!(file, "{}", message).unwrap();
 
     return true;
 }
