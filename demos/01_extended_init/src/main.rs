@@ -1,12 +1,21 @@
 extern crate gl;
 extern crate glfw;
+extern crate chrono;
 
-use glfw::{Context};
+use glfw::Context;
 use gl::types::{GLubyte, GLfloat, GLuint, GLsizei, GLsizeiptr, GLchar, GLvoid};
+use chrono::prelude::Utc;
+
 use std::string::String;
 use std::ffi::CStr;
 use std::mem;
 use std::ptr;
+use std::fs::File;
+use std::io::Write;
+use std::io;
+
+
+const GL_LOG_FILE: &str = "gl.log";
 
 
 fn glubyte_ptr_to_string(cstr: *const GLubyte) -> String {
@@ -15,6 +24,28 @@ fn glubyte_ptr_to_string(cstr: *const GLubyte) -> String {
     }
 }
 
+/// Start a new log file with the time and date at the top.
+fn restart_gl_log() -> bool {
+    let file = File::create(GL_LOG_FILE);
+    if file.is_err() {
+        write!(
+            io::stderr(),
+            "ERROR: The GL_LOG_FILE log file {} could not be opened for writing.",
+            GL_LOG_FILE
+        ).unwrap();
+
+        return false;
+    }
+
+    let mut file = file.unwrap();
+
+    let date = Utc::now();
+    write!(file, "GL_LOG_FILE log. local time {}", date).unwrap();
+    // TODO: Use a build script in a build.rs file to generate this.
+    write!(file, "build version: ??? ?? ???? ??:??:??\n\n").unwrap();
+
+    return true;
+}
 
 fn main() {
     // Start a GL context and OS window using the GLFW helper library.
