@@ -2,6 +2,7 @@ extern crate gl;
 extern crate glfw;
 extern crate chrono;
 
+
 use glfw::Context;
 use gl::types::{GLubyte, GLfloat, GLuint, GLsizei, GLsizeiptr, GLchar, GLvoid};
 use chrono::prelude::Utc;
@@ -12,6 +13,7 @@ use std::mem;
 use std::ptr;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::cell::Cell;
 
 
 const GL_LOG_FILE: &str = "gl.log";
@@ -65,7 +67,7 @@ fn gl_log(args: &[&str]) -> bool {
 }
 
 /// Same as gl_log except also prints to stderr.
-fn gl_log_err(args: &[&str]) -> bool {
+fn gl_log_err(message: &str) -> bool {
     let file = OpenOptions::new().write(true).append(true).open(GL_LOG_FILE);
     if file.is_err() {
         eprintln!("ERROR: Could not open GL_LOG_FILE {} file for appending.", GL_LOG_FILE);
@@ -73,17 +75,17 @@ fn gl_log_err(args: &[&str]) -> bool {
     }
 
     let mut file = file.unwrap();
-    for arg in args {
-        writeln!(file, "{}", arg).unwrap();
-    }
-
-    for arg in args {
-        eprintln!("{}", arg);
-    } 
+    writeln!(file, "{}", message).unwrap();
+    eprintln!("{}", message);
 
     return true;
 }
 
+/* we will tell GLFW to run this function whenever it finds an error */
+fn glfw_error_callback(error: glfw::Error, description: String, error_count: &Cell<usize>) {
+    gl_log_err(&format!("GLFW ERROR: code {} msg: {}", error, description));
+    error_count.set(error_count.get() + 1);
+}
 
 fn main() {
     // Start a GL context and OS window using the GLFW helper library.
