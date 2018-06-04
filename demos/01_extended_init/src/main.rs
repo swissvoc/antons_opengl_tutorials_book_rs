@@ -18,6 +18,7 @@ use std::io;
 const GL_LOG_FILE: &str = "gl.log";
 
 
+#[inline]
 fn glubyte_ptr_to_string(cstr: *const GLubyte) -> String {
     unsafe {
         CStr::from_ptr(cstr as *const i8).to_string_lossy().into_owned()
