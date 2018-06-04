@@ -61,27 +61,47 @@ int main () {
         "#version 460\n"
         "in vec3 vp;"
         "void main () {"
-        "    gl_Position = vec4 { vp, 1.0 };"
+        "    gl_Position = vec4 (vp, 1.0);"
         "}";
 
     const char* fragment_shader = 
         "#version 460\n"
         "out vec4 frag_colour;"
         "void main() {"
-        "    frag_colour = vec4 {0.5, 0.0, 0.5, 1.0};"
+        "    frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);"
         "}";
+
+
+    GLsizei shader_info_log_maxlen = 1024;
+    GLsizei shader_info_log_len = 0;
+    GLchar shader_info_log[1024] = { 0 };
 
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vs, 1, &vertex_shader, NULL);
     glCompileShader(vs);
 
+    glGetShaderInfoLog(vs, shader_info_log_maxlen, &shader_info_log_len, shader_info_log);
+    printf("SHADER LOG:\n");
+    printf("BUFFER LENGTH: %i\n", shader_info_log_len);
+    for (int i = 0; i < shader_info_log_len; i++) {
+        printf("%c", shader_info_log[i]);
+    }
+    printf("END SHADER LOG.\n");
+
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fs, 1, &fragment_shader, NULL);
     glCompileShader(fs);
 
+    glGetShaderInfoLog(fs, shader_info_log_maxlen, &shader_info_log_len, shader_info_log);
+    printf("SHADER LOG:\n");
+    printf("BUFFER LENGTH: %i\n", shader_info_log_len);
+    for (int i = 0; i < shader_info_log_len; i++) {
+        printf("%c", shader_info_log[i]);
+    }
+    printf("END SHADER LOG.\n");
     GLuint shader_programme = glCreateProgram();
-    glAttachShader(shader_programme, fs);
     glAttachShader(shader_programme, vs);
+    glAttachShader(shader_programme, fs);
     glLinkProgram(shader_programme);
 
     while (!glfwWindowShouldClose(window)) {
