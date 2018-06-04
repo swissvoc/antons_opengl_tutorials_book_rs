@@ -64,6 +64,26 @@ fn gl_log(args: &[&str]) -> bool {
     return true;
 }
 
+/// Same as gl_log except also prints to stderr.
+fn gl_log_err(args: &[&str]) -> bool {
+    let file = OpenOptions::new().write(true).append(true).open(GL_LOG_FILE);
+    if file.is_err() {
+        eprintln!("ERROR: Could not open GL_LOG_FILE {} file for appending.", GL_LOG_FILE);
+        return false;
+    }
+
+    let mut file = file.unwrap();
+    for arg in args {
+        writeln!(file, "{}", arg).unwrap();
+    }
+
+    for arg in args {
+        eprintln!("{}", arg);
+    } 
+
+    return true;
+}
+
 
 fn main() {
     // Start a GL context and OS window using the GLFW helper library.
