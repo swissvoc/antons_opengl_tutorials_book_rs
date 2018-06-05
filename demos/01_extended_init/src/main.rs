@@ -259,8 +259,6 @@ fn main() {
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
 
-        let mut shader_info_log_len = 0;
-        let mut shader_info_log = vec![0; 1024];
 
         let vs: GLuint = gl::CreateShader(gl::VERTEX_SHADER);
         gl::ShaderSource(vs, 1, &(vertex_shader.as_ptr() as *const GLchar), ptr::null());
@@ -277,20 +275,18 @@ fn main() {
         gl::AttachShader(shader_programme, fs);
         gl::LinkProgram(shader_programme);
 
-        let mut programme_info_log_len = 0;
-        let mut programme_info_log = vec![0; 1024];
 
         while !window.should_close() {
-            // wipe the drawing surface clear
+            // Wipe the drawing surface clear.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::ClearColor(0.3, 0.3, 0.3, 1.0);
             gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
-            // draw points 0-3 from the currently bound VAO with current in-use shader
+            // Draw points 0-3 from the currently bound VAO with current in-use shader.
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
-            // update other events like input handling 
+            // Update other events like input handling.
             glfw.poll_events();
-            // put the stuff we've been drawing onto the display
+            // Put the stuff we've been drawing onto the display.
             window.swap_buffers();
         }
     }
