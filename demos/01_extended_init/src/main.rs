@@ -19,8 +19,7 @@ use std::cell::Cell;
 
 const GL_LOG_FILE: &str = "gl.log";
 
-
-static mut previous_seconds: f64 = 0.;
+static mut PREVIOUS_SECONDS: f64 = 0.;
 
 
 #[inline]
@@ -87,14 +86,14 @@ fn glfw_error_callback(error: glfw::Error, description: String, error_count: &Ce
 }
 
 // Keep track of window size for things like the viewport and the mouse cursor
-static mut g_gl_width: usize = 640;
-static mut g_gl_height: usize = 480;
+static mut G_GL_WIDTH: usize = 640;
+static mut G_GL_HEIGHT: usize = 480;
 
 // We will tell GLFW to run this function whenever the framebuffer size is changed.
 fn glfw_framebuffer_size_callback(window: &glfw::Window, width: usize, height: usize) {
     unsafe {
-        g_gl_width = width;
-        g_gl_height = height;
+        G_GL_WIDTH = width;
+        G_GL_HEIGHT = height;
     }
     println!("width {} height {}", width, height);
     /* Update any perspective matrices used here */
@@ -154,25 +153,49 @@ fn log_gl_params() {
 fn _update_fps_counter(glfw: &glfw::Glfw, window: &mut glfw::Window) {
     let mut tmp: String = String::new();
 
-    static mut frame_count: usize = 0;
+    static mut FRAME_COUNT: usize = 0;
 
     let current_seconds = glfw.get_time();
     unsafe {
-        let elapsed_seconds = current_seconds - previous_seconds;
+        let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
         if elapsed_seconds > 0.25 {
-            previous_seconds = current_seconds;
+            PREVIOUS_SECONDS = current_seconds;
 
-            let fps = frame_count as f64 / elapsed_seconds;
+            let fps = FRAME_COUNT as f64 / elapsed_seconds;
             write!(&mut tmp, "OpenGL @ fps: {:.2}", fps).unwrap();
             window.set_title(&tmp);
-            frame_count = 0;
+            FRAME_COUNT = 0;
         }
 
-        frame_count += 1;
+        FRAME_COUNT += 1;
     }
 }
 
 fn main() {
+    let points: [GLfloat; 9] = [
+        0.0,  0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0
+    ];
+
+    let vertex_shader: &str = "
+        #version 460
+
+        in vec3 vp;
+
+        void main () {
+            gl_Position = vec4 (vp, 1.0);
+        }
+    ";
+
+    let fragment_shader: &str = "
+        #version 460
+
+        out vec4 frag_colour;
+
+        void main() {
+            frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);
+        }
+    ";
+
     // Start a GL context and OS window using the GLFW helper library.
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -201,6 +224,17 @@ fn main() {
     println!("Renderer: {}", renderer);
     println!("OpenGL version supported: {}", version);
 
+    restart_gl_log();
+    // Start GL context and O/S window using the GLFW helper library.
+    gl_log(&format!("Starting GLFW\n{}\n", glfw::get_version_string()));
+    // register the error call-back function that we wrote, above
+    glfw.set_error_callback(Some(
+        glfw::Callback { 
+            f: glfw_error_callback,
+            data: Cell::new(0),
+        }
+    ));
+
     // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
     unsafe {
         // Enable depth-testing.
@@ -209,9 +243,6 @@ fn main() {
         gl::DepthFunc(gl::LESS);
 
         /* OTHER STUFF GOES HERE NEXT */
-        let points: [GLfloat; 9] = [
-             0.0,  0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0
-        ];
 
         let mut vbo: GLuint = 0;
         gl::GenBuffers(1, &mut vbo);
@@ -228,26 +259,6 @@ fn main() {
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
 
-        let vertex_shader: &str = "
-            #version 460
-
-            in vec3 vp;
-
-            void main () {
-                gl_Position = vec4 (vp, 1.0);
-            }
-        ";
-
-        let fragment_shader: &str = "
-            #version 460
-
-            out vec4 frag_colour;
-
-            void main() {
-                frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);
-            }
-        ";
-
         let mut shader_info_log_len = 0;
         let mut shader_info_log = vec![0; 1024];
 
@@ -255,35 +266,11 @@ fn main() {
         gl::ShaderSource(vs, 1, &(vertex_shader.as_ptr() as *const GLchar), ptr::null());
         gl::CompileShader(vs);
 
-        gl::GetShaderInfoLog(
-            vs, 
-            shader_info_log.capacity() as GLsizei, 
-            &mut shader_info_log_len, 
-            shader_info_log.as_mut_ptr()
-        );
-        println!("VERTEX SHADER LOG:");
-        println!("BUFFER LENGTH: {}", shader_info_log_len);
-        for i in 0..shader_info_log_len as usize {
-            print!("{}", shader_info_log[i] as u8 as char);
-        }
-        println!("END VERTEX SHADER LOG.");
 
         let fs: GLuint = gl::CreateShader(gl::FRAGMENT_SHADER);
         gl::ShaderSource(fs, 1, &(fragment_shader.as_ptr() as *const GLchar), ptr::null());
         gl::CompileShader(fs);
 
-        gl::GetShaderInfoLog(
-            fs, 
-            shader_info_log.capacity() as GLsizei, 
-            &mut shader_info_log_len, 
-            shader_info_log.as_mut_ptr()
-        );
-        println!("FRAGMENT SHADER LOG:");
-        println!("BUFFER LENGTH: {}", shader_info_log_len);
-        for i in 0..shader_info_log_len as usize {
-            print!("{}", shader_info_log[i] as u8 as char);
-        }
-        println!("END FRAGMENT SHADER LOG.");
 
         let shader_programme: GLuint = gl::CreateProgram();
         gl::AttachShader(shader_programme, vs);
@@ -292,17 +279,6 @@ fn main() {
 
         let mut programme_info_log_len = 0;
         let mut programme_info_log = vec![0; 1024];
-        gl::GetProgramInfoLog(
-            shader_programme, 
-            programme_info_log.capacity() as GLsizei,
-            &mut programme_info_log_len,
-            programme_info_log.as_mut_ptr()
-        );
-        println!("SHADER PROGRAM LOG:");
-        for i in 0..programme_info_log_len as usize {
-            print!("{}", programme_info_log[i] as u8 as char);
-        }
-        println!("END SHADER PROGRAM LOG.");
 
         while !window.should_close() {
             // wipe the drawing surface clear
