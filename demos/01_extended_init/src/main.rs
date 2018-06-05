@@ -179,26 +179,6 @@ fn main() {
         0.0,  0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0
     ];
 
-    let vertex_shader: &str = "
-        #version 460
-
-        in vec3 vp;
-
-        void main () {
-            gl_Position = vec4 (vp, 1.0);
-        }
-    ";
-
-    let fragment_shader: &str = "
-        #version 460
-
-        out vec4 frag_colour;
-
-        void main() {
-            frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);
-        }
-    ";
-
     // Start a GL context and OS window using the GLFW helper library.
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -228,7 +208,12 @@ fn main() {
     .expect("Failed to create GLFW window.");
     //glfw::ffi::glfwSetWindowSizeCallback(&mut window, Some(glfw_framebuffer_size_callback));
 
+
     window.make_current();
+    window.set_key_polling(true);
+    window.set_size_polling(true);
+    window.set_refresh_polling(true);
+    window.set_size_polling(true);
 
     // Load the OpenGl function pointers.
     gl::load_with(|symbol| { window.get_proc_address(symbol) as *const _ });
@@ -263,21 +248,52 @@ fn main() {
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
 
+        let vertex_shader: &str = "
+            #version 460
+
+            in vec3 vp;
+
+            void main () {
+                gl_Position = vec4 (vp, 1.0);
+            }
+        ";
+
+        let fragment_shader: &str = "
+            #version 460
+
+            out vec4 frag_colour;
+
+            void main() {
+                frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);
+            }
+        ";
 
         let vs: GLuint = gl::CreateShader(gl::VERTEX_SHADER);
         gl::ShaderSource(vs, 1, &(vertex_shader.as_ptr() as *const GLchar), ptr::null());
         gl::CompileShader(vs);
 
-
         let fs: GLuint = gl::CreateShader(gl::FRAGMENT_SHADER);
         gl::ShaderSource(fs, 1, &(fragment_shader.as_ptr() as *const GLchar), ptr::null());
         gl::CompileShader(fs);
-
 
         let shader_programme: GLuint = gl::CreateProgram();
         gl::AttachShader(shader_programme, vs);
         gl::AttachShader(shader_programme, fs);
         gl::LinkProgram(shader_programme);
+
+        let mut programme_info_log_len = 0;
+        let mut programme_info_log = vec![0; 1024];
+        gl::GetProgramInfoLog(
+            shader_programme, 
+            programme_info_log.capacity() as i32,
+            &mut programme_info_log_len,
+            programme_info_log.as_mut_ptr()
+        );
+        println!("SHADER PROGRAM LOG:");
+        for i in 0..programme_info_log_len as usize {
+            print!("{}", programme_info_log[i] as u8 as char);
+        }
+        println!("END SHADER PROGRAM LOG.");
 
         PREVIOUS_SECONDS = glfw.get_time();
         while !window.should_close() {
