@@ -248,8 +248,6 @@ fn main() {
         // Depth-testing interprets a smaller value as "closer".
         gl::DepthFunc(gl::LESS);
 
-        /* OTHER STUFF GOES HERE NEXT */
-
         let mut vbo: GLuint = 0;
         gl::GenBuffers(1, &mut vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
