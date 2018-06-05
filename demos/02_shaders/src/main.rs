@@ -21,83 +21,13 @@ use std::cell::Cell;
 
 const GL_LOG_FILE: &str = "gl.log";
 
-static mut PREVIOUS_SECONDS: f64 = 0.;
-
-// Keep track of window size for things like the viewport and the mouse cursor
-const G_GL_WIDTH_DEFAULT: u32 = 640;
-const G_GL_HEIGHT_DEFAULT: u32 = 480;
-
-static mut G_GL_WIDTH: u32 = 640;
-static mut G_GL_HEIGHT: u32 = 480;
-
-
-// We will tell GLFW to run this function whenever the framebuffer size is changed.
-fn glfw_framebuffer_size_callback(window: &mut glfw::Window, width: u32, height: u32) {
-    unsafe {
-        G_GL_WIDTH = width;
-        G_GL_HEIGHT = height;
-    }
-    println!("width {} height {}", width, height);
-    /* Update any perspective matrices used here */
-}
-
-/* we will tell GLFW to run this function whenever it finds an error */
-fn glfw_error_callback(error: glfw::Error, description: String, error_count: &Cell<usize>) {
-    gl_utils::gl_log_err(&format!("GLFW ERROR: code {} msg: {}", error, description));
-    error_count.set(error_count.get() + 1);
-}
 
 fn main() {
     let points: [GLfloat; 9] = [
         0.0,  0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0
     ];
 
-    // Start a GL context and OS window using the GLFW helper library.
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
-
-    gl_utils::restart_gl_log();
-    // Start GL context and O/S window using the GLFW helper library.
-    gl_utils::gl_log(&format!("Starting GLFW\n{}\n", glfw::get_version_string()));
-    // register the error call-back function that we wrote, above
-    glfw.set_error_callback(Some(
-        glfw::Callback { 
-            f: glfw_error_callback,
-            data: Cell::new(0),
-        }
-    ));
-
-    // uncomment these lines if on Mac OS X.
-    // glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
-    // glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 2);
-    // glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    // glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    // Set anti-aliasing factor to make diagonal edges appear less jagged.
-    glfw.window_hint(glfw::WindowHint::Samples(Some(4)));
-
-    let (mut window, events) = glfw.create_window(
-        G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Extended Init.", glfw::WindowMode::Windowed
-    )
-    .expect("Failed to create GLFW window.");
-    //glfw::ffi::glfwSetWindowSizeCallback(&mut window, Some(glfw_framebuffer_size_callback));
-
-    window.make_current();
-    window.set_key_polling(true);
-    window.set_size_polling(true);
-    window.set_refresh_polling(true);
-    window.set_size_polling(true);
-
-    // Load the OpenGl function pointers.
-    gl::load_with(|symbol| { window.get_proc_address(symbol) as *const _ });
-
-    // Get renderer and version info.
-    let renderer = gl_utils::glubyte_ptr_to_string(unsafe { gl::GetString(gl::RENDERER) });
-    let version = gl_utils::glubyte_ptr_to_string(unsafe { gl::GetString(gl::VERSION) });
-    println!("Renderer: {}", renderer);
-    println!("OpenGL version supported: {}", version);
-    gl_utils::gl_log(&format!("renderer: {}\nversion: {}\n", renderer, version));
-    gl_utils::log_gl_params();
-
+    let (mut glfw, mut window, events) = gl_utils::start_gl().unwrap();
     unsafe {
         // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
         // Enable depth-testing.
@@ -167,13 +97,13 @@ fn main() {
         }
         println!("END SHADER PROGRAM LOG.");
 
-        PREVIOUS_SECONDS = glfw.get_time();
+        gl_utils::PREVIOUS_SECONDS = glfw.get_time();
         while !window.should_close() {
             gl_utils::_update_fps_counter(&mut glfw, &mut window);
             // Wipe the drawing surface clear.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::ClearColor(0.3, 0.3, 0.3, 1.0);
-            gl::Viewport(0, 0, G_GL_WIDTH as GLint, G_GL_HEIGHT as GLint);
+            gl::Viewport(0, 0, gl_utils::G_GL_WIDTH as GLint, gl_utils::G_GL_HEIGHT as GLint);
 
             gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
