@@ -86,11 +86,14 @@ fn glfw_error_callback(error: glfw::Error, description: String, error_count: &Ce
 }
 
 // Keep track of window size for things like the viewport and the mouse cursor
-static mut G_GL_WIDTH: usize = 640;
-static mut G_GL_HEIGHT: usize = 480;
+const G_GL_WIDTH_DEFAULT: u32 = 640;
+const G_GL_HEIGHT_DEFAULT: u32 = 480;
+
+static mut G_GL_WIDTH: u32 = 640;
+static mut G_GL_HEIGHT: u32 = 480;
 
 // We will tell GLFW to run this function whenever the framebuffer size is changed.
-fn glfw_framebuffer_size_callback(window: &glfw::Window, width: usize, height: usize) {
+fn glfw_framebuffer_size_callback(window: &mut glfw::Window, width: u32, height: u32) {
     unsafe {
         G_GL_WIDTH = width;
         G_GL_HEIGHT = height;
@@ -199,31 +202,6 @@ fn main() {
     // Start a GL context and OS window using the GLFW helper library.
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
-    // uncomment these lines if on Apple OS X.
-    // glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
-    // glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 2);
-    // glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    // glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    let (mut window, _) = glfw.create_window(640, 480, "Hello Triangle", glfw::WindowMode::Windowed)
-        .expect("Failed to create GLFW window.");
-
-    window.make_current();
-
-    // Load the OpenGl function pointers.
-    gl::load_with(|symbol| { window.get_proc_address(symbol) as *const _ });
-
-    // Get renderer and version info.
-    let renderer = glubyte_ptr_to_string(
-        unsafe { gl::GetString(gl::RENDERER) }
-    );
-    let version = glubyte_ptr_to_string(
-        unsafe { gl::GetString(gl::VERSION) }
-    );
-
-    println!("Renderer: {}", renderer);
-    println!("OpenGL version supported: {}", version);
-
     restart_gl_log();
     // Start GL context and O/S window using the GLFW helper library.
     gl_log(&format!("Starting GLFW\n{}\n", glfw::get_version_string()));
@@ -235,8 +213,36 @@ fn main() {
         }
     ));
 
-    // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
+    // uncomment these lines if on Mac OS X.
+    // glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
+    // glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 2);
+    // glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    // glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // Set anti-aliasing factor to make diagonal edges appear less jagged.
+    glfw.window_hint(glfw::WindowHint::Samples(Some(4)));
+
+    let (mut window, _) = glfw.create_window(
+        G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Extended Init.", glfw::WindowMode::Windowed
+    )
+    .expect("Failed to create GLFW window.");
+    //glfw::ffi::glfwSetWindowSizeCallback(&mut window, Some(glfw_framebuffer_size_callback));
+
+    window.make_current();
+
+    // Load the OpenGl function pointers.
+    gl::load_with(|symbol| { window.get_proc_address(symbol) as *const _ });
+
+    // Get renderer and version info.
+    let renderer = glubyte_ptr_to_string(unsafe { gl::GetString(gl::RENDERER) });
+    let version = glubyte_ptr_to_string(unsafe { gl::GetString(gl::VERSION) });
+    println!("Renderer: {}", renderer);
+    println!("OpenGL version supported: {}", version);
+    gl_log(&format!("renderer: {}\nversion: {}\n", renderer, version));
+    log_gl_params();
+
     unsafe {
+        // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
         // Enable depth-testing.
         gl::Enable(gl::DEPTH_TEST);
         // Depth-testing interprets a smaller value as "closer".
