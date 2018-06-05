@@ -3,8 +3,8 @@ extern crate glfw;
 extern crate chrono;
 
 
-use glfw::Context;
-use gl::types::{GLubyte, GLfloat, GLuint, GLsizei, GLsizeiptr, GLchar, GLvoid, GLint, GLenum};
+use glfw::{Action, Context, Key};
+use gl::types::{GLubyte, GLfloat, GLuint, GLsizeiptr, GLchar, GLvoid, GLint, GLenum};
 use chrono::prelude::Utc;
 
 use std::string::String;
@@ -222,7 +222,7 @@ fn main() {
     // Set anti-aliasing factor to make diagonal edges appear less jagged.
     glfw.window_hint(glfw::WindowHint::Samples(Some(4)));
 
-    let (mut window, _) = glfw.create_window(
+    let (mut window, events) = glfw.create_window(
         G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Extended Init.", glfw::WindowMode::Windowed
     )
     .expect("Failed to create GLFW window.");
@@ -281,17 +281,31 @@ fn main() {
         gl::AttachShader(shader_programme, fs);
         gl::LinkProgram(shader_programme);
 
-
+        PREVIOUS_SECONDS = glfw.get_time();
         while !window.should_close() {
+            _update_fps_counter(&mut glfw, &mut window);
             // Wipe the drawing surface clear.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::ClearColor(0.3, 0.3, 0.3, 1.0);
+            gl::Viewport(0, 0, G_GL_WIDTH as GLint, G_GL_HEIGHT as GLint);
+
             gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
             // Draw points 0-3 from the currently bound VAO with current in-use shader.
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
             // Update other events like input handling.
             glfw.poll_events();
+            for (time, event) in glfw::flush_messages(&events) {
+                match event {
+                    glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
+                        window.set_should_close(true);
+                    }
+                    _ => {
+
+                    }
+                }
+            }
+
             // Put the stuff we've been drawing onto the display.
             window.swap_buffers();
         }
