@@ -6,18 +6,13 @@ mod gl_utils;
 
 
 use glfw::{Action, Context, Key};
-use gl::types::{GLubyte, GLfloat, GLuint, GLsizeiptr, GLchar, GLvoid, GLint, GLenum};
-use chrono::prelude::Utc;
+use gl::types::{GLfloat, GLuint, GLsizeiptr, GLchar, GLvoid, GLint, GLenum};
 
 use std::string::String;
-use std::ffi::CStr;
 use std::mem;
 use std::ptr;
-use std::fs::{File, OpenOptions};
-use std::io;
-use std::io::{Read, Write};
-use std::fmt::Write as FWrite;
-use std::cell::Cell;
+use std::fs::{File};
+use std::io::{Read};
 use std::process;
 
 
