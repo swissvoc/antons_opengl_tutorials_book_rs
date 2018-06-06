@@ -176,7 +176,7 @@ pub fn start_gl() -> Result<(glfw::Glfw, glfw::Window, Receiver<(f64, glfw::Wind
     glfw.window_hint(glfw::WindowHint::Samples(Some(4)));
 
     let (mut window, events) = glfw.create_window(
-        G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Extended Init.", glfw::WindowMode::Windowed
+        G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Vectors And Matrices", glfw::WindowMode::Windowed
     )
     .expect("Failed to create GLFW window.");
     //glfw::ffi::glfwSetWindowSizeCallback(&mut window, Some(glfw_framebuffer_size_callback));

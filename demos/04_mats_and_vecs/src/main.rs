@@ -211,11 +211,18 @@ fn main() {
 
     // The matrix is represented in column major order in memory.
     // That is, `matrix` is of the form matrix[COLUMN][ROW].
-    let matrix: [GLfloat; 16] = [ 
+    let mut matrix: [GLfloat; 16] = [ 
         1.0, 0.0, 0.0, 0.0, // First column 
         0.0, 1.0, 0.0, 0.0, // Second column 
         0.0, 0.0, 1.0, 0.0, // Third column 
         0.5, 0.0, 0.0, 1.0  // Fourth column 
+    ];
+
+    let mut m_Rxy: [GLfloat; 16] = [
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0,
     ];
 
     gl_utils::restart_gl_log();
@@ -308,15 +315,32 @@ fn main() {
         gl::UseProgram(shader_programme);
         gl::UniformMatrix4fv(matrix_location, 1, gl::FALSE, matrix.as_ptr());
 
-        gl_utils::PREVIOUS_SECONDS = glfw.get_time();
+        let mut speed = 1.0 * 1e4;
+        let mut last_position = 0.0;
         while !window.should_close() {
-            gl_utils::_update_fps_counter(&mut glfw, &mut window);
+            // Add timer for doing animation.
+            gl_utils::PREVIOUS_SECONDS = glfw.get_time();
+            let current_seconds = glfw.get_time();
+            let elapsed_seconds = current_seconds - gl_utils::PREVIOUS_SECONDS;
+            gl_utils::PREVIOUS_SECONDS = current_seconds;
+
+            // Reverse direction when we go too far left or right.
+            if f32::abs(last_position) > 1.0 {
+                speed = -speed;
+            }
+
+            // Update the matrix.
+            matrix[12] = (elapsed_seconds as GLfloat) * speed + last_position;
+            last_position = matrix[12];
+            gl::UseProgram(shader_programme);
+            gl::UniformMatrix4fv(matrix_location, 1, gl::FALSE, matrix.as_ptr());
+
+            //gl_utils::_update_fps_counter(&mut glfw, &mut window);
             // Wipe the drawing surface clear.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::ClearColor(0.3, 0.3, 0.3, 1.0);
             gl::Viewport(0, 0, gl_utils::G_GL_WIDTH as GLint, gl_utils::G_GL_HEIGHT as GLint);
 
-            gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
             // Draw points 0-3 from the currently bound VAO with current in-use shader.
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
