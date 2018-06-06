@@ -1,5 +1,5 @@
 [package]
-name = "vertex buffer objects"
+name = "vectors_and_matrices"
 version = "0.1.0"
 authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 
