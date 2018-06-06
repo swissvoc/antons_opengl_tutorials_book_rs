@@ -14,13 +14,38 @@ use std::ffi::CStr;
 use std::mem;
 use std::ptr;
 use std::fs::{File, OpenOptions};
-use std::io::Write;
+use std::io;
+use std::io::{Read, Write};
 use std::fmt::Write as FWrite;
 use std::cell::Cell;
 
 
 const GL_LOG_FILE: &str = "gl.log";
 
+
+fn parse_file_into_str(file_name: &str, shader_str: &mut Vec<u8>, max_len: usize) -> bool {
+    let file = File::open(file_name);
+    if file.is_err() {
+        gl_utils::gl_log_err(&format!("ERROR: opening file for reading: {}\n", file_name));
+        return false;
+    }
+
+    let mut file = file.unwrap();
+
+    let bytes_read = file.read_to_end(shader_str);
+    if bytes_read.is_err() {
+        gl_utils::gl_log_err(&format!("ERROR: reading shader file {}\n", file_name));
+        return false;
+    }
+
+    if bytes_read.unwrap() >= (max_len - 1) {
+        gl_utils::gl_log_err(&format!("WARNING: file {} too big - truncated.\n", file_name));
+    }
+
+    // append \0 to end of file string.
+    shader_str.push(0);
+    return true;
+}
 
 fn main() {
     let points: [GLfloat; 9] = [
