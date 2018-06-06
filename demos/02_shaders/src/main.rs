@@ -258,20 +258,6 @@ fn main() {
         gl::AttachShader(shader_programme, fs);
         gl::LinkProgram(shader_programme);
 
-        let mut programme_info_log_len = 0;
-        let mut programme_info_log = vec![0; 1024];
-        gl::GetProgramInfoLog(
-            shader_programme, 
-            programme_info_log.capacity() as i32,
-            &mut programme_info_log_len,
-            programme_info_log.as_mut_ptr()
-        );
-        println!("SHADER PROGRAM LOG:");
-        for i in 0..programme_info_log_len as usize {
-            print!("{}", programme_info_log[i] as u8 as char);
-        }
-        println!("END SHADER PROGRAM LOG.");
-
         gl_utils::PREVIOUS_SECONDS = glfw.get_time();
         while !window.should_close() {
             gl_utils::_update_fps_counter(&mut glfw, &mut window);
