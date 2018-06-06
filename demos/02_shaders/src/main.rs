@@ -92,6 +92,87 @@ fn is_valid(sp: GLuint) -> bool {
     return true;
 }
 
+/* print absolutely everything about a shader - only useful if you get really
+stuck wondering why a shader isn't working properly */
+fn print_all(sp: GLuint) {
+    let mut params = -1;
+
+    unsafe {
+        println!("--------------------\nshader programme {} info:", sp);
+        gl::GetProgramiv(sp, gl::LINK_STATUS, &mut params);
+        println!("GL_LINK_STATUS = {}", params);
+
+        gl::GetProgramiv(sp, gl::ATTACHED_SHADERS, &mut params);
+        println!("GL_ATTACHED_SHADERS = {}", params);
+
+        gl::GetProgramiv(sp, gl::ACTIVE_ATTRIBUTES, &mut params);
+        println!("GL_ACTIVE_ATTRIBUTES = {}", params);
+    }
+
+    for i in 0..params {
+        let mut name = [0; 64];
+        let max_length = 64;
+        let mut actual_length = 0;
+        let mut size = 0;
+        let mut gl_type: GLenum = 0;
+        unsafe {
+            gl::GetActiveAttrib(sp, i as GLuint, max_length, &mut actual_length, &mut size, &mut gl_type, &mut name[0]);
+        }
+        if size > 1 {
+            for j in 0..size {
+                let mut long_name = vec![];
+                //write!(long_name, "{}[{}]", name, j);
+                let location = unsafe { gl::GetAttribLocation(sp, long_name.as_ptr() as *const i8) };
+                println!(
+                    "  {}) type:{} name:{} location:{}", 
+                    i, GL_type_to_string(gl_type), long_name.iter().map(|ch| *ch as u8 as char).collect::<String>(), location
+                );
+            }
+        } else {
+            let location = unsafe { gl::GetAttribLocation(sp, &mut name[0]) };
+            println!(
+                "  {}) type:{} name:{} location:{}",
+                i, GL_type_to_string(gl_type), name.iter().map(|ch| *ch as u8 as char).collect::<String>(), location
+            );
+        }
+    }
+    
+    unsafe {
+        gl::GetProgramiv(sp, gl::ACTIVE_UNIFORMS, &mut params);
+    }
+    println!("GL_ACTIVE_UNIFORMS = {}", params);
+    for i in 0..params {
+        let mut name = [0; 64];
+        let max_length = 64;
+        let mut actual_length = 0;
+        let mut size = 0;
+        let mut gl_type: GLenum = 0;
+        unsafe {
+            gl::GetActiveUniform(sp, i as u32, max_length, &mut actual_length, &mut size, &mut gl_type, &mut name[0]);
+        }
+        if size > 1 {
+            for j in 0..size {
+                let long_name = [0; 64];
+
+                //write!(long_name, "{}[{}]", name, j);
+                let location = unsafe { gl::GetUniformLocation(sp, long_name.as_ptr()) };
+                println!(
+                    "  {}) type:{} name:{} location:{}",
+                    i, GL_type_to_string(gl_type), long_name.iter().map(|ch| *ch as u8 as char).collect::<String>(), location
+                );
+            }
+        } else {
+            let location = unsafe { gl::GetUniformLocation(sp, &name[0]) };
+            println!(
+                "  {}) type:{} name:{} location:{}", 
+                i, GL_type_to_string(gl_type), name.iter().map(|ch| *ch as u8 as char).collect::<String>(), location
+            );
+        }
+    }
+
+    _print_programme_info_log(sp);
+}
+
 fn parse_file_into_str(file_name: &str, shader_str: &mut Vec<u8>, max_len: usize) -> bool {
     let file = File::open(file_name);
     if file.is_err() {
