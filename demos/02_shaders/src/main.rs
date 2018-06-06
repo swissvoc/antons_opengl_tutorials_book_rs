@@ -18,6 +18,7 @@ use std::io;
 use std::io::{Read, Write};
 use std::fmt::Write as FWrite;
 use std::cell::Cell;
+use std::process;
 
 
 const GL_LOG_FILE: &str = "gl.log";
@@ -173,7 +174,7 @@ fn print_all(sp: GLuint) {
     _print_programme_info_log(sp);
 }
 
-fn parse_file_into_str(file_name: &str, shader_str: &mut Vec<u8>, max_len: usize) -> bool {
+fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usize) -> bool {
     let file = File::open(file_name);
     if file.is_err() {
         gl_utils::gl_log_err(&format!("ERROR: opening file for reading: {}\n", file_name));
@@ -182,18 +183,20 @@ fn parse_file_into_str(file_name: &str, shader_str: &mut Vec<u8>, max_len: usize
 
     let mut file = file.unwrap();
 
-    let bytes_read = file.read_to_end(shader_str);
+    let bytes_read = file.read(shader_str);
     if bytes_read.is_err() {
         gl_utils::gl_log_err(&format!("ERROR: reading shader file {}\n", file_name));
         return false;
     }
 
-    if bytes_read.unwrap() >= (max_len - 1) {
+    let bytes_read = bytes_read.unwrap();
+    if bytes_read >= (max_len - 1) {
         gl_utils::gl_log_err(&format!("WARNING: file {} too big - truncated.\n", file_name));
     }
 
     // append \0 to end of file string.
-    shader_str.push(0);
+    shader_str[bytes_read] = 0;
+
     return true;
 }
 
@@ -202,6 +205,7 @@ fn main() {
         0.0,  0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0
     ];
 
+    gl_utils::restart_gl_log();
     let (mut glfw, mut window, events) = gl_utils::start_gl().unwrap();
     unsafe {
         // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
@@ -225,38 +229,61 @@ fn main() {
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
 
-        let vertex_shader: &str = "
-            #version 460
+        /* load shaders from files here */
+        let mut vertex_shader = vec![0; 1024 * 256];
+        parse_file_into_str("src/test_vs.glsl", &mut vertex_shader, 1024 * 256);
 
-            in vec3 vp;
-
-            void main () {
-                gl_Position = vec4 (vp, 1.0);
-            }
-        ";
-
-        let fragment_shader: &str = "
-            #version 460
-
-            out vec4 frag_colour;
-
-            void main() {
-                frag_colour = vec4 (0.5, 0.0, 0.5, 1.0);
-            }
-        ";
+        let mut fragment_shader = vec![0; 1024 * 256];
+        parse_file_into_str("src/test_fs.glsl", &mut fragment_shader, 1024 * 256);
 
         let vs: GLuint = gl::CreateShader(gl::VERTEX_SHADER);
-        gl::ShaderSource(vs, 1, &(vertex_shader.as_ptr() as *const GLchar), ptr::null());
+        let p = vertex_shader.as_ptr() as *const GLchar;
+        gl::ShaderSource(vs, 1, &p, ptr::null());
         gl::CompileShader(vs);
 
+        let mut params = -1;
+        gl::GetShaderiv(vs, gl::COMPILE_STATUS, &mut params);
+        if params != gl::TRUE as i32 {
+            eprintln!("ERROR: GL shader index {} did not compile", vs);
+            _print_shader_info_log(vs);
+            process::exit(1);
+        }
+
         let fs: GLuint = gl::CreateShader(gl::FRAGMENT_SHADER);
-        gl::ShaderSource(fs, 1, &(fragment_shader.as_ptr() as *const GLchar), ptr::null());
+        let p = fragment_shader.as_ptr() as *const GLchar;
+        gl::ShaderSource(fs, 1, &p, ptr::null());
         gl::CompileShader(fs);
+
+        /* check for compile errors */
+        params = -1;
+        gl::GetShaderiv(fs, gl::COMPILE_STATUS, &mut params);
+        if params != gl::TRUE as i32 {
+            eprintln!("ERROR: GL shader index {} did not compile", fs);
+            _print_shader_info_log(fs);
+            process::exit(1);
+        }
 
         let shader_programme: GLuint = gl::CreateProgram();
         gl::AttachShader(shader_programme, vs);
         gl::AttachShader(shader_programme, fs);
         gl::LinkProgram(shader_programme);
+
+        /* check for shader linking errors - very important! */
+        params = -1;
+        gl::GetProgramiv(shader_programme, gl::LINK_STATUS, &mut params);
+        if params != gl::TRUE as i32 {
+            eprintln!("ERROR: could not link shader programme GL index {}", shader_programme);
+            _print_programme_info_log(shader_programme);
+            process::exit(1);
+        }
+        print_all(shader_programme);
+        let result = is_valid(shader_programme);
+        assert!(result);
+
+        let colour_loc = gl::GetUniformLocation(shader_programme, "inputColour".as_ptr() as *const i8);
+        assert!(colour_loc > -1);
+        gl::UseProgram(shader_programme);
+        gl::Uniform4f(colour_loc, 1.0, 0.0, 0.0, 1.0);
 
         gl_utils::PREVIOUS_SECONDS = glfw.get_time();
         while !window.should_close() {
@@ -272,7 +299,7 @@ fn main() {
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
             // Update other events like input handling.
             glfw.poll_events();
-            for (time, event) in glfw::flush_messages(&events) {
+            for (_, event) in glfw::flush_messages(&events) {
                 match event {
                     glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                         window.set_should_close(true);
