@@ -42,6 +42,55 @@ fn GL_type_to_string(gl_type: GLenum) -> &'static str {
     }
 }
 
+/* print errors in shader compilation */
+fn _print_shader_info_log(shader_index: GLuint) {
+    let max_length = 2048;
+    let mut actual_length = 0;
+    let mut log = [0; 2048];
+    
+    unsafe {
+        gl::GetShaderInfoLog(shader_index, max_length, &mut actual_length, &mut log[0]);
+    }
+    
+    println!("Shader info log for GL index {}:", shader_index);
+    for i in 0..actual_length as usize {
+        print!("{}", log[i] as u8 as char);
+    }
+    println!();
+}
+
+/* print errors in shader linking */
+fn _print_programme_info_log(sp: GLuint) {
+    let max_length = 2048;
+    let mut actual_length = 0;
+    let mut log = [0 as i8; 2048];
+    
+    unsafe {
+        gl::GetProgramInfoLog(sp, max_length, &mut actual_length, &mut log[0]);
+    }
+    
+    println!("Program info log for GL index {}:", sp);
+    for i in 0..actual_length as usize {
+        print!("{}", log[i] as u8 as char);
+    }
+    println!();
+}
+
+/* validate shader */
+fn is_valid(sp: GLuint) -> bool {
+    let mut params = -1;
+    unsafe {
+        gl::ValidateProgram(sp);
+        gl::GetProgramiv(sp, gl::VALIDATE_STATUS, &mut params);
+    }
+
+    println!("Program {} GL_VALIDATE_STATUS = {}\n", sp, params);
+    if gl::TRUE as i32 != params {
+        _print_programme_info_log(sp);
+        return false;
+    }
+    return true;
+}
 
 fn parse_file_into_str(file_name: &str, shader_str: &mut Vec<u8>, max_len: usize) -> bool {
     let file = File::open(file_name);
