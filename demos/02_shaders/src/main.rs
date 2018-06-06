@@ -23,6 +23,26 @@ use std::cell::Cell;
 const GL_LOG_FILE: &str = "gl.log";
 
 
+fn GL_type_to_string(gl_type: GLenum) -> &'static str {
+    match gl_type {
+        gl::BOOL => "bool",
+        gl::INT => "int",
+        gl::FLOAT => "float",
+        gl::FLOAT_VEC2 => "vec2",
+        gl::FLOAT_VEC3 => "vec3",
+        gl::FLOAT_VEC4 => "vec4",
+        gl::FLOAT_MAT2 => "mat2",
+        gl::FLOAT_MAT3 => "mat3",
+        gl::FLOAT_MAT4 => "mat4",
+        gl::SAMPLER_2D => "sampler2D",
+        gl::SAMPLER_3D => "sampler3D",
+        gl::SAMPLER_CUBE => "samplerCube",
+        gl::SAMPLER_2D_SHADOW => "sampler2DShadow",
+        _ => "other"
+    }
+}
+
+
 fn parse_file_into_str(file_name: &str, shader_str: &mut Vec<u8>, max_len: usize) -> bool {
     let file = File::open(file_name);
     if file.is_err() {
