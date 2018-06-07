@@ -316,6 +316,33 @@ fn main() {
 
         let mut speed = 1.0 * 1e4;
         let mut last_position = 0.0;
+        // Camera parameters.
+        let mut cam_speed = 1.0;       // 1 unit per second.
+        let mut cam_yaw_speed = 10.0;  // 10 degrees per second.
+        let mut cam_pos = [0.0, 0.0, 2.0];
+        let mut cam_yaw = 0.0;
+        // Camera translation and rotation.
+        let mut T = translate(&Mat4::identity(), &vec3(-cam_pos[0], -cam_pos[1], -cam_pos[2]));
+        let mut R = rotate_y_deg(&Mat4::identity(), -cam_yaw);
+        let view_mat = &R * &T;
+        // Set up project matrix. We will put this into a math function later.
+        let near = 0.1;
+        let far = 100.0;
+        let fov = 67.0 * ONE_DEG_IN_RAD; // Convert 67 degrees to radians.
+        let aspect = G_GL_WIDTH as f32 / G_GL_HEIGHT as f32;
+        let range = f32::tan(fov * 0.5) * near;
+        let Sx = (2.0 * near) / (range * aspect + range * aspect);
+        let Sy = near / range;
+        let Sz = -(far + near) / (far - near);
+        let Pz = -(2.0 * far * near) / (far - near);
+
+        let mut proj_mat = mat4(
+            Sx, 0.0, 0.0,  0.0, 
+            0.0, Sy, 0.0,  0.0, 
+            0.0, 0.0, Sz, -1.0,
+            0.0, 0.0, Pz,  0.0
+        );
+
         while !window.should_close() {
             // Add timer for doing animation.
             PREVIOUS_SECONDS = glfw.get_time();
@@ -331,7 +358,7 @@ fn main() {
             let dx = (elapsed_seconds as GLfloat) * speed;
             // Update the matrix.
             //matrix = translate(&matrix, &vec3(dx, 0.0, 0.0)) * &m_Rxy;
-            matrix = &m_Rxy * &matrix;
+            //matrix = &m_Rxy * &matrix;
 
             // Update the last position.
             last_position += dx;
