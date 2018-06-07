@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops;
 
 
@@ -14,6 +15,12 @@ impl Vec2 {
 #[inline]
 pub fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2::new(x, y)
+}
+
+impl fmt::Display for Vec2 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{:.2}, {:.2}]", self.v[0], self.v[1])
+    }
 }
 
 pub struct Vec3 {
@@ -33,6 +40,12 @@ impl Vec3 {
 #[inline]
 pub fn vec3(x: f32, y: f32, z: f32) -> Vec3 {
     Vec3::new(x, y, z)
+}
+
+impl fmt::Display for Vec3 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{:.2}, {:.2}, {:.2}]", self.v[0], self.v[1], self.v[2])
+    }
 }
 
 fn length(v: &Vec3) -> f32 {
@@ -428,11 +441,103 @@ pub fn vec4(x: f32, y: f32, z: f32, w: f32) -> Vec4 {
     Vec4::new(x, y, z, w)
 }
 
-pub struct Mat3 {
-    v: [f32; 12],
+impl fmt::Display for Vec4 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{:.2}, {:.2}, {:.2}, {:.2}]", self.v[0], self.v[1], self.v[2], self.v[3])
+    }
 }
 
+///
+/// The `Mat3` type represents 3x3 matrices in column-major order.
+///
+pub struct Mat3 {
+    v: [f32; 9],
+}
+
+impl Mat3 {
+    fn new(m11: f32, m12: f32, m13: f32, 
+           m21: f32, m22: f32, m23: f32, 
+           m31: f32, m32: f32, m33: f32) -> Mat3 {
+
+        Mat3 {
+            v: [
+                m11, m12, m13, // Column 1
+                m21, m22, m23, // Column 2
+                m31, m32, m33  // Column 3
+            ]
+        }
+    }
+
+    fn zero() -> Mat3 {
+        Mat3::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    }
+
+    fn identity() -> Mat3 {
+        Mat3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    }
+}
+
+impl fmt::Display for Mat3 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, 
+            "\n[{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}]", 
+            self.v[0], self.v[3], self.v[6],
+            self.v[1], self.v[4], self.v[7],
+            self.v[2], self.v[5], self.v[8],
+        )
+    }
+}
+
+///
+/// The `Mat4` type represents 4x4 matrices in column-major order.
+///
 pub struct Mat4 {
     v: [f32; 16],
 }
 
+impl Mat4 {
+    fn new(m11: f32, m12: f32, m13: f32, m14: f32,
+           m21: f32, m22: f32, m23: f32, m24: f32,
+           m31: f32, m32: f32, m33: f32, m34: f32,
+           m41: f32, m42: f32, m43: f32, m44: f32) -> Mat4 {
+
+        Mat4 {
+            v: [
+                m11, m12, m13, m14, // Column 1
+                m21, m22, m23, m24, // Column 2
+                m31, m32, m33, m34, // Column 3
+                m41, m42, m43, m44  // Column 4
+            ]
+        }
+    }
+
+    fn zero() -> Mat4 {
+        Mat4::new(
+            0.0, 0.0, 0.0, 0.0, 
+            0.0, 0.0, 0.0, 0.0, 
+            0.0, 0.0, 0.0, 0.0, 
+            0.0, 0.0, 0.0, 0.0
+        )
+    }
+
+    fn identity() -> Mat4 {
+        Mat4::new(
+            1.0, 0.0, 0.0, 0.0, 
+            0.0, 1.0, 0.0, 0.0, 
+            0.0, 0.0, 1.0, 0.0, 
+            0.0, 0.0, 0.0, 1.0
+        )
+    }
+}
+
+impl fmt::Display for Mat4 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, 
+            "\n[{:.2}][{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}][{:.2}]", 
+            self.v[0], self.v[4], self.v[8],  self.v[12],
+            self.v[1], self.v[5], self.v[9],  self.v[13],
+            self.v[2], self.v[6], self.v[10], self.v[14],
+            self.v[3], self.v[7], self.v[11], self.v[15]
+        )
+    }
+}
