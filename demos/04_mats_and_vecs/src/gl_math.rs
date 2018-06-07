@@ -541,3 +541,56 @@ impl fmt::Display for Mat4 {
         )
     }
 }
+
+impl ops::Mul<Vec4> for Mat4 {
+    type Output = Vec4;
+
+    fn mul(self, other: Vec4) -> Self::Output {
+        // x = m[0] * v_x + m[4] * 4v_y + m[8] * v_z + m[12] * v_w
+        let x = self.v[0] * other.v[0] + self.v[4] * other.v[1] + self.v[8] * other.v[2] + self.v[12] * other.v[3];
+        // y = m[1]*v_x + m[5]*4v_y + m[9]*v_z + m[13]*v_w
+        let y = self.v[1] * other.v[0] + self.v[5] * other.v[1] + self.v[9] * other.v[2] + self.v[13] * other.v[3];
+        // z = m[2]*v_x + m[6]*4v_y + m[10]*v_z + m[14]*v_w
+        let z = self.v[2] * other.v[0] + self.v[6] * other.v[1] + self.v[10] * other.v[2] + self.v[14] * other.v[3];
+        // w = m[3]*v_x + m[7]*4v_y + m[11]*v_z + m[15]*v_w
+        let w = self.v[3] * other.v[0] + self.v[7] * other.v[1] + self.v[11] * other.v[2] + self.v[15] * other.v[3];
+        
+        return Vec4::new(x, y, z, w)
+    }
+}
+
+impl<'a> ops::Mul<&'a Mat4> for Mat4 {
+    type Output = Mat4;
+
+    fn mul(self, other: &'a Mat4) -> Mat4 {
+        let mut m = Mat4::zero();
+        m.v[0]  = self.v[0]*other.v[0]  + self.v[4]*other.v[1]  + self.v[8]*other.v[2]   + self.v[12]*other.v[3];
+        m.v[1]  = self.v[1]*other.v[0]  + self.v[5]*other.v[1]  + self.v[9]*other.v[2]   + self.v[13]*other.v[3];
+        m.v[2]  = self.v[2]*other.v[0]  + self.v[6]*other.v[1]  + self.v[10]*other.v[2]  + self.v[14]*other.v[3];
+        m.v[3]  = self.v[3]*other.v[0]  + self.v[7]*other.v[1]  + self.v[11]*other.v[2]  + self.v[15]*other.v[3];
+        m.v[4]  = self.v[0]*other.v[4]  + self.v[4]*other.v[5]  + self.v[8]*other.v[6]   + self.v[12]*other.v[7];
+        m.v[5]  = self.v[1]*other.v[4]  + self.v[5]*other.v[5]  + self.v[9]*other.v[6]   + self.v[13]*other.v[7];
+        m.v[6]  = self.v[2]*other.v[4]  + self.v[6]*other.v[5]  + self.v[10]*other.v[6]  + self.v[14]*other.v[7];
+        m.v[7]  = self.v[3]*other.v[4]  + self.v[7]*other.v[5]  + self.v[11]*other.v[6]  + self.v[15]*other.v[7];
+        m.v[8]  = self.v[0]*other.v[8]  + self.v[4]*other.v[9]  + self.v[8]*other.v[10]  + self.v[12]*other.v[11];
+        m.v[9]  = self.v[1]*other.v[8]  + self.v[5]*other.v[9]  + self.v[9]*other.v[10]  + self.v[13]*other.v[11];
+        m.v[10] = self.v[2]*other.v[8]  + self.v[6]*other.v[9]  + self.v[10]*other.v[10] + self.v[14]*other.v[11];
+        m.v[11] = self.v[3]*other.v[8]  + self.v[7]*other.v[9]  + self.v[11]*other.v[10] + self.v[15]*other.v[11];
+        m.v[12] = self.v[0]*other.v[12] + self.v[4]*other.v[13] + self.v[8]*other.v[14]  + self.v[12]*other.v[15];
+        m.v[13] = self.v[1]*other.v[12] + self.v[5]*other.v[13] + self.v[9]*other.v[14]  + self.v[13]*other.v[15];
+        m.v[14] = self.v[2]*other.v[12] + self.v[6]*other.v[13] + self.v[10]*other.v[14] + self.v[14]*other.v[15];
+        m.v[15] = self.v[3]*other.v[12] + self.v[7]*other.v[13] + self.v[11]*other.v[14] + self.v[15]*other.v[15];
+
+        m
+    }
+}
+
+fn transpose(m: &Mat4) -> Mat4 {
+    Mat4::new(
+        m.v[0], m.v[4], m.v[8], m.v[12],
+        m.v[1], m.v[5], m.v[9], m.v[13], 
+        m.v[2], m.v[6], m.v[10], m.v[14], 
+        m.v[3], m.v[7], m.v[11], m.v[15]
+    )
+}
+
