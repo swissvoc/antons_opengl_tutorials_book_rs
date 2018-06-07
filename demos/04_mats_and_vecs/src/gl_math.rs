@@ -492,7 +492,7 @@ impl fmt::Display for Mat3 {
 /// The `Mat4` type represents 4x4 matrices in column-major order.
 ///
 pub struct Mat4 {
-    v: [f32; 16],
+    m: [f32; 16],
 }
 
 impl Mat4 {
@@ -502,7 +502,7 @@ impl Mat4 {
            m41: f32, m42: f32, m43: f32, m44: f32) -> Mat4 {
 
         Mat4 {
-            v: [
+            m: [
                 m11, m12, m13, m14, // Column 1
                 m21, m22, m23, m24, // Column 2
                 m31, m32, m33, m34, // Column 3
@@ -534,10 +534,10 @@ impl fmt::Display for Mat4 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, 
             "\n[{:.2}][{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}][{:.2}]", 
-            self.v[0], self.v[4], self.v[8],  self.v[12],
-            self.v[1], self.v[5], self.v[9],  self.v[13],
-            self.v[2], self.v[6], self.v[10], self.v[14],
-            self.v[3], self.v[7], self.v[11], self.v[15]
+            self.m[0], self.m[4], self.m[8],  self.m[12],
+            self.m[1], self.m[5], self.m[9],  self.m[13],
+            self.m[2], self.m[6], self.m[10], self.m[14],
+            self.m[3], self.m[7], self.m[11], self.m[15]
         )
     }
 }
@@ -547,13 +547,13 @@ impl ops::Mul<Vec4> for Mat4 {
 
     fn mul(self, other: Vec4) -> Self::Output {
         // x = m[0] * v_x + m[4] * 4v_y + m[8] * v_z + m[12] * v_w
-        let x = self.v[0] * other.v[0] + self.v[4] * other.v[1] + self.v[8] * other.v[2] + self.v[12] * other.v[3];
+        let x = self.m[0] * other.v[0] + self.m[4] * other.v[1] + self.m[8] * other.v[2] + self.m[12] * other.v[3];
         // y = m[1]*v_x + m[5]*4v_y + m[9]*v_z + m[13]*v_w
-        let y = self.v[1] * other.v[0] + self.v[5] * other.v[1] + self.v[9] * other.v[2] + self.v[13] * other.v[3];
+        let y = self.m[1] * other.v[0] + self.m[5] * other.v[1] + self.m[9] * other.v[2] + self.m[13] * other.v[3];
         // z = m[2]*v_x + m[6]*4v_y + m[10]*v_z + m[14]*v_w
-        let z = self.v[2] * other.v[0] + self.v[6] * other.v[1] + self.v[10] * other.v[2] + self.v[14] * other.v[3];
+        let z = self.m[2] * other.v[0] + self.m[6] * other.v[1] + self.m[10] * other.v[2] + self.m[14] * other.v[3];
         // w = m[3]*v_x + m[7]*4v_y + m[11]*v_z + m[15]*v_w
-        let w = self.v[3] * other.v[0] + self.v[7] * other.v[1] + self.v[11] * other.v[2] + self.v[15] * other.v[3];
+        let w = self.m[3] * other.v[0] + self.m[7] * other.v[1] + self.m[11] * other.v[2] + self.m[15] * other.v[3];
         
         return Vec4::new(x, y, z, w)
     }
@@ -563,34 +563,41 @@ impl<'a> ops::Mul<&'a Mat4> for Mat4 {
     type Output = Mat4;
 
     fn mul(self, other: &'a Mat4) -> Mat4 {
-        let mut m = Mat4::zero();
-        m.v[0]  = self.v[0]*other.v[0]  + self.v[4]*other.v[1]  + self.v[8]*other.v[2]   + self.v[12]*other.v[3];
-        m.v[1]  = self.v[1]*other.v[0]  + self.v[5]*other.v[1]  + self.v[9]*other.v[2]   + self.v[13]*other.v[3];
-        m.v[2]  = self.v[2]*other.v[0]  + self.v[6]*other.v[1]  + self.v[10]*other.v[2]  + self.v[14]*other.v[3];
-        m.v[3]  = self.v[3]*other.v[0]  + self.v[7]*other.v[1]  + self.v[11]*other.v[2]  + self.v[15]*other.v[3];
-        m.v[4]  = self.v[0]*other.v[4]  + self.v[4]*other.v[5]  + self.v[8]*other.v[6]   + self.v[12]*other.v[7];
-        m.v[5]  = self.v[1]*other.v[4]  + self.v[5]*other.v[5]  + self.v[9]*other.v[6]   + self.v[13]*other.v[7];
-        m.v[6]  = self.v[2]*other.v[4]  + self.v[6]*other.v[5]  + self.v[10]*other.v[6]  + self.v[14]*other.v[7];
-        m.v[7]  = self.v[3]*other.v[4]  + self.v[7]*other.v[5]  + self.v[11]*other.v[6]  + self.v[15]*other.v[7];
-        m.v[8]  = self.v[0]*other.v[8]  + self.v[4]*other.v[9]  + self.v[8]*other.v[10]  + self.v[12]*other.v[11];
-        m.v[9]  = self.v[1]*other.v[8]  + self.v[5]*other.v[9]  + self.v[9]*other.v[10]  + self.v[13]*other.v[11];
-        m.v[10] = self.v[2]*other.v[8]  + self.v[6]*other.v[9]  + self.v[10]*other.v[10] + self.v[14]*other.v[11];
-        m.v[11] = self.v[3]*other.v[8]  + self.v[7]*other.v[9]  + self.v[11]*other.v[10] + self.v[15]*other.v[11];
-        m.v[12] = self.v[0]*other.v[12] + self.v[4]*other.v[13] + self.v[8]*other.v[14]  + self.v[12]*other.v[15];
-        m.v[13] = self.v[1]*other.v[12] + self.v[5]*other.v[13] + self.v[9]*other.v[14]  + self.v[13]*other.v[15];
-        m.v[14] = self.v[2]*other.v[12] + self.v[6]*other.v[13] + self.v[10]*other.v[14] + self.v[14]*other.v[15];
-        m.v[15] = self.v[3]*other.v[12] + self.v[7]*other.v[13] + self.v[11]*other.v[14] + self.v[15]*other.v[15];
+        let mut mm = Mat4::zero();
+        mm.m[0]  = self.m[0]*other.m[0]  + self.m[4]*other.m[1]  + self.m[8]*other.m[2]   + self.m[12]*other.m[3];
+        mm.m[1]  = self.m[1]*other.m[0]  + self.m[5]*other.m[1]  + self.m[9]*other.m[2]   + self.m[13]*other.m[3];
+        mm.m[2]  = self.m[2]*other.m[0]  + self.m[6]*other.m[1]  + self.m[10]*other.m[2]  + self.m[14]*other.m[3];
+        mm.m[3]  = self.m[3]*other.m[0]  + self.m[7]*other.m[1]  + self.m[11]*other.m[2]  + self.m[15]*other.m[3];
+        mm.m[4]  = self.m[0]*other.m[4]  + self.m[4]*other.m[5]  + self.m[8]*other.m[6]   + self.m[12]*other.m[7];
+        mm.m[5]  = self.m[1]*other.m[4]  + self.m[5]*other.m[5]  + self.m[9]*other.m[6]   + self.m[13]*other.m[7];
+        mm.m[6]  = self.m[2]*other.m[4]  + self.m[6]*other.m[5]  + self.m[10]*other.m[6]  + self.m[14]*other.m[7];
+        mm.m[7]  = self.m[3]*other.m[4]  + self.m[7]*other.m[5]  + self.m[11]*other.m[6]  + self.m[15]*other.m[7];
+        mm.m[8]  = self.m[0]*other.m[8]  + self.m[4]*other.m[9]  + self.m[8]*other.m[10]  + self.m[12]*other.m[11];
+        mm.m[9]  = self.m[1]*other.m[8]  + self.m[5]*other.m[9]  + self.m[9]*other.m[10]  + self.m[13]*other.m[11];
+        mm.m[10] = self.m[2]*other.m[8]  + self.m[6]*other.m[9]  + self.m[10]*other.m[10] + self.m[14]*other.m[11];
+        mm.m[11] = self.m[3]*other.m[8]  + self.m[7]*other.m[9]  + self.m[11]*other.m[10] + self.m[15]*other.m[11];
+        mm.m[12] = self.m[0]*other.m[12] + self.m[4]*other.m[13] + self.m[8]*other.m[14]  + self.m[12]*other.m[15];
+        mm.m[13] = self.m[1]*other.m[12] + self.m[5]*other.m[13] + self.m[9]*other.m[14]  + self.m[13]*other.m[15];
+        mm.m[14] = self.m[2]*other.m[12] + self.m[6]*other.m[13] + self.m[10]*other.m[14] + self.m[14]*other.m[15];
+        mm.m[15] = self.m[3]*other.m[12] + self.m[7]*other.m[13] + self.m[11]*other.m[14] + self.m[15]*other.m[15];
 
-        m
+        mm
     }
 }
 
-fn transpose(m: &Mat4) -> Mat4 {
+fn transpose(mm: &Mat4) -> Mat4 {
     Mat4::new(
-        m.v[0], m.v[4], m.v[8], m.v[12],
-        m.v[1], m.v[5], m.v[9], m.v[13], 
-        m.v[2], m.v[6], m.v[10], m.v[14], 
-        m.v[3], m.v[7], m.v[11], m.v[15]
+        mm.m[0], mm.m[4], mm.m[8], mm.m[12],
+        mm.m[1], mm.m[5], mm.m[9], mm.m[13], 
+        mm.m[2], mm.m[6], mm.m[10], mm.m[14], 
+        mm.m[3], mm.m[7], mm.m[11], mm.m[15]
     )
 }
 
+fn translate(m: &Mat4, v: &Vec3) -> Mat4 {
+    let mut m_t = Mat4::identity();
+    m_t.m[12] = v.v[0];
+    m_t.m[13] = v.v[1];
+    m_t.m[14] = v.v[2];
+    return m_t * m;
+}
