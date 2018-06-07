@@ -3,6 +3,7 @@ extern crate glfw;
 extern crate chrono;
 
 mod gl_utils;
+mod gl_math;
 
 
 use glfw::{Action, Context, Key};
