@@ -2,6 +2,13 @@ use std::fmt;
 use std::ops;
 
 
+// Constants used to convert degrees into radians.
+const M_PI: f32 = 3.14159265358979323846264338327950288;
+const TAU: f32 = 2.0 * M_PI;
+const ONE_DEG_IN_RAD: f32 = (2.0 * M_PI) / 360.0; // 0.017444444
+const ONE_RAD_IN_DEG: f32 = 360.0 / (2.0 * M_PI); // 57.2957795
+
+
 pub struct Vec2 {
     v: [f32; 2],
 }
@@ -601,3 +608,53 @@ fn translate(m: &Mat4, v: &Vec3) -> Mat4 {
     m_t.m[14] = v.v[2];
     return m_t * m;
 }
+
+// Rotate around x axis by an angle in degrees.
+fn rotate_x_deg(m: &Mat4, deg: f32) -> Mat4 {
+    // Convert to radians.
+    let rad = deg * ONE_DEG_IN_RAD;
+    let mut m_r = Mat4::identity();
+    m_r.m[5] = f32::cos(rad);
+    m_r.m[9] = -f32::sin(rad);
+    m_r.m[6] = f32::sin(rad);
+    m_r.m[10] = f32::cos(rad);
+    
+    m_r * m
+}
+
+// Rotate around y axis by an angle in degrees.
+fn rotate_y_deg(m: &mat4, deg: f32) -> Mat4 {
+    // Convert to radians.
+    let rad = deg * ONE_DEG_IN_RAD;
+    let mut m_r = Mat4::identity();
+    m_r.m[0] = f32::cos(rad);
+    m_r.m[8] = f32::sin(rad);
+    m_r.m[2] = -f32::sin(rad);
+    m_r.m[10] = f32::cos(rad);
+    
+    m_r * m
+}
+
+// Rotate around z axis by an angle in degrees.
+fn rotate_z_deg(m: &mat4, deg: f32) -> Mat4 {
+    // Convert to radians.
+    let rad = deg * ONE_DEG_IN_RAD;
+    let mut m_r = Mat4::identity();
+    m_r.m[0] = f32::cos(rad);
+    m_r.m[4] = -f32::sin(rad);
+    m_r.m[1] = f32::sin(rad);
+    m_r.m[5] = f32::cos(rad);
+    
+    m_r * m
+}
+
+// scale a matrix by [x, y, z]
+fn scale(m: &Mat4, v: &Vec3) -> Mat4 {
+    let mut a = Mat4::identity();
+    a.m[0] = v.v[0];
+    a.m[5] = v.v[1];
+    a.m[10] = v.v[2];
+    
+    a * m
+}
+
