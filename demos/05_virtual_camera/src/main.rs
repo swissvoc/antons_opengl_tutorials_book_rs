@@ -207,32 +207,9 @@ fn main() {
         1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0
     ];
 
-    // The matrix is represented in column major order in memory.
-    // That is, `matrix` is of the form matrix[COLUMN][ROW].
-    let mut matrix: Mat4 = mat4(
-        1.0, 0.0, 0.0, 0.0, // First column 
-        0.0, 1.0, 0.0, 0.0, // Second column 
-        0.0, 0.0, 1.0, 0.0, // Third column 
-        0.0, 0.0, 0.0, 1.0  // Fourth column 
-    );
-
-    let mut m_Rxy: Mat4 = mat4(
-        1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0,
-    );
-    m_Rxy = rotate_z_deg(&m_Rxy, 1.0);
-
     restart_gl_log();
     let (mut glfw, mut window, events) = start_gl().unwrap();
     unsafe {
-        // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
-        // Enable depth-testing.
-        gl::Enable(gl::DEPTH_TEST);
-        // Depth-testing interprets a smaller value as "closer".
-        gl::DepthFunc(gl::LESS);
-
         let mut points_vbo: GLuint = 0;
         gl::GenBuffers(1, &mut points_vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
@@ -310,10 +287,6 @@ fn main() {
         let result = is_valid(shader_programme);
         assert!(result);
 
-        let matrix_location = gl::GetUniformLocation (shader_programme, "matrix".as_ptr() as *const i8);
-        gl::UseProgram(shader_programme);
-        gl::UniformMatrix4fv(matrix_location, 1, gl::FALSE, matrix.as_ptr());
-
         let mut speed = 1.0 * 1e4;
         let mut last_position = 0.0;
         // Camera parameters.
@@ -325,6 +298,7 @@ fn main() {
         let mut T = translate(&Mat4::identity(), &vec3(-cam_pos[0], -cam_pos[1], -cam_pos[2]));
         let mut R = rotate_y_deg(&Mat4::identity(), -cam_yaw);
         let view_mat = &R * &T;
+
         // Set up project matrix. We will put this into a math function later.
         let near = 0.1;
         let far = 100.0;
@@ -336,12 +310,28 @@ fn main() {
         let Sz = -(far + near) / (far - near);
         let Pz = -(2.0 * far * near) / (far - near);
 
-        let mut proj_mat = mat4(
+        let proj_mat = mat4(
             Sx, 0.0, 0.0,  0.0, 
             0.0, Sy, 0.0,  0.0, 
             0.0, 0.0, Sz, -1.0,
             0.0, 0.0, Pz,  0.0
         );
+
+        let id_mat = Mat4::identity();
+
+        let view_mat_location = gl::GetUniformLocation(shader_programme, "view".as_ptr() as *const i8);
+        assert!(view_mat_location != -1);
+        let proj_mat_location = gl::GetUniformLocation(shader_programme, "proj".as_ptr() as *const i8);
+        assert!(proj_mat_location != -1);
+        gl::UseProgram(shader_programme);
+        gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
+        gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
+
+        // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
+        // Enable depth-testing.
+        gl::Enable(gl::DEPTH_TEST);
+        // Depth-testing interprets a smaller value as "closer".
+        gl::DepthFunc(gl::LESS);
 
         while !window.should_close() {
             // Add timer for doing animation.
@@ -350,27 +340,12 @@ fn main() {
             let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
             PREVIOUS_SECONDS = current_seconds;
 
-            // Reverse direction when we go too far left or right.
-            if f32::abs(last_position) > 1.0 {
-                speed = -speed;
-            }
-
-            let dx = (elapsed_seconds as GLfloat) * speed;
-            // Update the matrix.
-            //matrix = translate(&matrix, &vec3(dx, 0.0, 0.0)) * &m_Rxy;
-            //matrix = &m_Rxy * &matrix;
-
-            // Update the last position.
-            last_position += dx;
-
-            gl::UseProgram(shader_programme);
-            gl::UniformMatrix4fv(matrix_location, 1, gl::FALSE, matrix.as_ptr());
-
             // Wipe the drawing surface clear.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::ClearColor(0.3, 0.3, 0.3, 1.0);
             gl::Viewport(0, 0, G_GL_WIDTH as GLint, G_GL_HEIGHT as GLint);
 
+            gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
             // Draw points 0-3 from the currently bound VAO with current in-use shader.
             gl::DrawArrays(gl::TRIANGLES, 0, 3);

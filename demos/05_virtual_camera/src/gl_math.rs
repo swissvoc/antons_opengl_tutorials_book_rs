@@ -641,7 +641,7 @@ impl<'a, 'b> ops::Mul<&'a Mat4> for &'b Mat4 {
     }
 }
 
-fn transpose(mm: &Mat4) -> Mat4 {
+pub fn transpose(mm: &Mat4) -> Mat4 {
     Mat4::new(
         mm.m[0], mm.m[4], mm.m[8],  mm.m[12],
         mm.m[1], mm.m[5], mm.m[9],  mm.m[13], 

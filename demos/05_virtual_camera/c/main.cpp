@@ -121,19 +121,23 @@ int main() {
 	float Sy = near / range;
 	float Sz = -( far + near ) / ( far - near );
 	float Pz = -( 2.0f * far * near ) / ( far - near );
-	GLfloat proj_mat[] = { Sx,	 0.0f, 0.0f, 0.0f,	0.0f, Sy,		0.0f, 0.0f,
-												 0.0f, 0.0f, Sz,	 -1.0f, 0.0f, 0.0f, Pz,		0.0f };
+	GLfloat proj_mat[] = { 
+		Sx,	  0.0f, 0.0f,  0.0f, 
+		0.0f, Sy,   0.0f,  0.0f,
+		0.0f, 0.0f, Sz,	  -1.0f,
+		0.0f, 0.0f, Pz,    0.0f
+	};
 
 	/* create VIEW MATRIX */
-	float cam_speed = 1.0f;			 // 1 unit per second
-	float cam_yaw_speed = 10.0f; // 10 degrees per second
-	float cam_pos[] = { 0.0f, 0.0f,
-											2.0f }; // don't start at zero, or we will be too close
-	float cam_yaw = 0.0f;				// y-rotation in degrees
+	float cam_speed = 1.0f;			        // 1 unit per second
+	float cam_yaw_speed = 10.0f;            // 10 degrees per second
+	float cam_pos[] = { 0.0f, 0.0f, 2.0f }; // don't start at zero, or we will be too close
+	float cam_yaw = 0.0f;				    // y-rotation in degrees
 	mat4 T =
 		translate( identity_mat4(), vec3( -cam_pos[0], -cam_pos[1], -cam_pos[2] ) );
 	mat4 R = rotate_y_deg( identity_mat4(), -cam_yaw );
 	mat4 view_mat = R * T;
+	print(view_mat);
 
 	/* get location numbers of matrices in shader programme */
 	GLint view_mat_location = glGetUniformLocation( shader_programme, "view" );
