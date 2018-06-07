@@ -11,6 +11,11 @@ impl Vec2 {
     }
 }
 
+#[inline]
+pub fn vec2(x: f32, y: f32) -> Vec2 {
+    Vec2::new(x, y)
+}
+
 pub struct Vec3 {
     v: [f32; 3],
 }
@@ -23,6 +28,11 @@ impl Vec3 {
     fn zero() -> Vec3 {
         Vec3 { v: [0.0, 0.0, 0.0] }
     }
+}
+
+#[inline]
+pub fn vec3(x: f32, y: f32, z: f32) -> Vec3 {
+    Vec3::new(x, y, z)
 }
 
 fn length(v: &Vec3) -> f32 {
@@ -41,6 +51,26 @@ fn normalize(v: &Vec3) -> Vec3 {
     }
 
     Vec3::new(v.v[0] / norm_v, v.v[1] / norm_v, v.v[2] / norm_v)
+}
+
+fn dot(a: &Vec3, b: &Vec3) -> f32 {
+    a.v[0] * b.v[0] + a.v[1] * b.v[1] + a.v[2] * b.v[2]
+}
+
+fn cross(a: &Vec3, b: &Vec3) -> Vec3 {
+    let x = a.v[1] * b.v[2] - a.v[2] * b.v[1];
+    let y = a.v[2] * b.v[0] - a.v[0] * b.v[2];
+    let z = a.v[0] * b.v[1] - a.v[1] * b.v[0];
+    
+    Vec3::new(x, y, z)
+}
+
+fn get_squared_dist(from: Vec3, to: Vec3) -> f32 {
+    let x = ( to.v[0] - from.v[0] ) * ( to.v[0] - from.v[0] );
+    let y = ( to.v[1] - from.v[1] ) * ( to.v[1] - from.v[1] );
+    let z = ( to.v[2] - from.v[2] ) * ( to.v[2] - from.v[2] );
+    
+    x + y + z
 }
 
 impl<'a> ops::Add<Vec3> for &'a Vec3 {
@@ -391,5 +421,18 @@ impl Vec4 {
     fn new(x: f32, y: f32, z: f32, w: f32) -> Vec4 {
         Vec4 { v: [x, y, z, w] }
     }
+}
+
+#[inline]
+pub fn vec4(x: f32, y: f32, z: f32, w: f32) -> Vec4 {
+    Vec4::new(x, y, z, w)
+}
+
+pub struct Mat3 {
+    v: [f32; 12],
+}
+
+pub struct Mat4 {
+    v: [f32; 16],
 }
 
