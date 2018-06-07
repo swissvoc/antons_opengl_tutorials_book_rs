@@ -55,7 +55,7 @@ impl fmt::Display for Vec3 {
     }
 }
 
-fn length(v: &Vec3) -> f32 {
+pub fn length(v: &Vec3) -> f32 {
     f32::sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1] + v.v[2] * v.v[2])
 }
 
@@ -495,15 +495,23 @@ impl fmt::Display for Mat3 {
     }
 }
 
+fn mat3(m11: f32, m12: f32, m13: f32, 
+        m21: f32, m22: f32, m23: f32, 
+        m31: f32, m32: f32, m33: f32) -> Mat3 {
+
+    Mat3::new(m11, m12, m13, m21, m22, m23, m31, m32, m33)
+
+}
+
 ///
 /// The `Mat4` type represents 4x4 matrices in column-major order.
 ///
 pub struct Mat4 {
-    m: [f32; 16],
+    pub m: [f32; 16],
 }
 
 impl Mat4 {
-    fn new(m11: f32, m12: f32, m13: f32, m14: f32,
+    pub fn new(m11: f32, m12: f32, m13: f32, m14: f32,
            m21: f32, m22: f32, m23: f32, m24: f32,
            m31: f32, m32: f32, m33: f32, m34: f32,
            m41: f32, m42: f32, m43: f32, m44: f32) -> Mat4 {
@@ -518,7 +526,7 @@ impl Mat4 {
         }
     }
 
-    fn zero() -> Mat4 {
+    pub fn zero() -> Mat4 {
         Mat4::new(
             0.0, 0.0, 0.0, 0.0, 
             0.0, 0.0, 0.0, 0.0, 
@@ -527,13 +535,17 @@ impl Mat4 {
         )
     }
 
-    fn identity() -> Mat4 {
+    pub fn identity() -> Mat4 {
         Mat4::new(
             1.0, 0.0, 0.0, 0.0, 
             0.0, 1.0, 0.0, 0.0, 
             0.0, 0.0, 1.0, 0.0, 
             0.0, 0.0, 0.0, 1.0
         )
+    }
+
+    pub fn as_ptr(&self) -> *const f32 {
+        self.m.as_ptr()
     }
 }
 
@@ -549,6 +561,17 @@ impl fmt::Display for Mat4 {
     }
 }
 
+pub fn mat4(m11: f32, m12: f32, m13: f32, m14: f32, 
+        m21: f32, m22: f32, m23: f32, m24: f32,
+        m31: f32, m32: f32, m33: f32, m34: f32,
+        m41: f32, m42: f32, m43: f32, m44: f32) -> Mat4 {
+
+    Mat4::new(
+        m11, m12, m13, m14, m21, m22, m23, m24,
+        m31, m32, m33, m34, m41, m42, m43, m44
+    )
+}
+
 impl ops::Mul<Vec4> for Mat4 {
     type Output = Vec4;
 
@@ -562,7 +585,7 @@ impl ops::Mul<Vec4> for Mat4 {
         // w = m[3]*v_x + m[7]*4v_y + m[11]*v_z + m[15]*v_w
         let w = self.m[3] * other.v[0] + self.m[7] * other.v[1] + self.m[11] * other.v[2] + self.m[15] * other.v[3];
         
-        return Vec4::new(x, y, z, w)
+        Vec4::new(x, y, z, w)
     }
 }
 
@@ -592,21 +615,48 @@ impl<'a> ops::Mul<&'a Mat4> for Mat4 {
     }
 }
 
+impl<'a, 'b> ops::Mul<&'a Mat4> for &'b Mat4 {
+    type Output = Mat4;
+
+    fn mul(self, other: &'a Mat4) -> Mat4 {
+        let mut mm = Mat4::zero();
+        mm.m[0]  = self.m[0]*other.m[0]  + self.m[4]*other.m[1]  + self.m[8]*other.m[2]   + self.m[12]*other.m[3];
+        mm.m[1]  = self.m[1]*other.m[0]  + self.m[5]*other.m[1]  + self.m[9]*other.m[2]   + self.m[13]*other.m[3];
+        mm.m[2]  = self.m[2]*other.m[0]  + self.m[6]*other.m[1]  + self.m[10]*other.m[2]  + self.m[14]*other.m[3];
+        mm.m[3]  = self.m[3]*other.m[0]  + self.m[7]*other.m[1]  + self.m[11]*other.m[2]  + self.m[15]*other.m[3];
+        mm.m[4]  = self.m[0]*other.m[4]  + self.m[4]*other.m[5]  + self.m[8]*other.m[6]   + self.m[12]*other.m[7];
+        mm.m[5]  = self.m[1]*other.m[4]  + self.m[5]*other.m[5]  + self.m[9]*other.m[6]   + self.m[13]*other.m[7];
+        mm.m[6]  = self.m[2]*other.m[4]  + self.m[6]*other.m[5]  + self.m[10]*other.m[6]  + self.m[14]*other.m[7];
+        mm.m[7]  = self.m[3]*other.m[4]  + self.m[7]*other.m[5]  + self.m[11]*other.m[6]  + self.m[15]*other.m[7];
+        mm.m[8]  = self.m[0]*other.m[8]  + self.m[4]*other.m[9]  + self.m[8]*other.m[10]  + self.m[12]*other.m[11];
+        mm.m[9]  = self.m[1]*other.m[8]  + self.m[5]*other.m[9]  + self.m[9]*other.m[10]  + self.m[13]*other.m[11];
+        mm.m[10] = self.m[2]*other.m[8]  + self.m[6]*other.m[9]  + self.m[10]*other.m[10] + self.m[14]*other.m[11];
+        mm.m[11] = self.m[3]*other.m[8]  + self.m[7]*other.m[9]  + self.m[11]*other.m[10] + self.m[15]*other.m[11];
+        mm.m[12] = self.m[0]*other.m[12] + self.m[4]*other.m[13] + self.m[8]*other.m[14]  + self.m[12]*other.m[15];
+        mm.m[13] = self.m[1]*other.m[12] + self.m[5]*other.m[13] + self.m[9]*other.m[14]  + self.m[13]*other.m[15];
+        mm.m[14] = self.m[2]*other.m[12] + self.m[6]*other.m[13] + self.m[10]*other.m[14] + self.m[14]*other.m[15];
+        mm.m[15] = self.m[3]*other.m[12] + self.m[7]*other.m[13] + self.m[11]*other.m[14] + self.m[15]*other.m[15];
+
+        mm
+    }
+}
+
 fn transpose(mm: &Mat4) -> Mat4 {
     Mat4::new(
-        mm.m[0], mm.m[4], mm.m[8], mm.m[12],
-        mm.m[1], mm.m[5], mm.m[9], mm.m[13], 
+        mm.m[0], mm.m[4], mm.m[8],  mm.m[12],
+        mm.m[1], mm.m[5], mm.m[9],  mm.m[13], 
         mm.m[2], mm.m[6], mm.m[10], mm.m[14], 
         mm.m[3], mm.m[7], mm.m[11], mm.m[15]
     )
 }
 
-fn translate(m: &Mat4, v: &Vec3) -> Mat4 {
+pub fn translate(mm: &Mat4, v: &Vec3) -> Mat4 {
     let mut m_t = Mat4::identity();
     m_t.m[12] = v.v[0];
     m_t.m[13] = v.v[1];
     m_t.m[14] = v.v[2];
-    return m_t * m;
+
+    m_t * mm
 }
 
 // Rotate around x axis by an angle in degrees.
@@ -614,36 +664,36 @@ fn rotate_x_deg(m: &Mat4, deg: f32) -> Mat4 {
     // Convert to radians.
     let rad = deg * ONE_DEG_IN_RAD;
     let mut m_r = Mat4::identity();
-    m_r.m[5] = f32::cos(rad);
-    m_r.m[9] = -f32::sin(rad);
-    m_r.m[6] = f32::sin(rad);
-    m_r.m[10] = f32::cos(rad);
+    m_r.m[5]  =  f32::cos(rad);
+    m_r.m[9]  = -f32::sin(rad);
+    m_r.m[6]  =  f32::sin(rad);
+    m_r.m[10] =  f32::cos(rad);
     
     m_r * m
 }
 
 // Rotate around y axis by an angle in degrees.
-fn rotate_y_deg(m: &mat4, deg: f32) -> Mat4 {
+fn rotate_y_deg(m: &Mat4, deg: f32) -> Mat4 {
     // Convert to radians.
     let rad = deg * ONE_DEG_IN_RAD;
     let mut m_r = Mat4::identity();
-    m_r.m[0] = f32::cos(rad);
-    m_r.m[8] = f32::sin(rad);
-    m_r.m[2] = -f32::sin(rad);
-    m_r.m[10] = f32::cos(rad);
+    m_r.m[0]  =  f32::cos(rad);
+    m_r.m[8]  =  f32::sin(rad);
+    m_r.m[2]  = -f32::sin(rad);
+    m_r.m[10] =  f32::cos(rad);
     
     m_r * m
 }
 
 // Rotate around z axis by an angle in degrees.
-fn rotate_z_deg(m: &mat4, deg: f32) -> Mat4 {
+pub fn rotate_z_deg(m: &Mat4, deg: f32) -> Mat4 {
     // Convert to radians.
     let rad = deg * ONE_DEG_IN_RAD;
     let mut m_r = Mat4::identity();
-    m_r.m[0] = f32::cos(rad);
+    m_r.m[0] =  f32::cos(rad);
     m_r.m[4] = -f32::sin(rad);
-    m_r.m[1] = f32::sin(rad);
-    m_r.m[5] = f32::cos(rad);
+    m_r.m[1] =  f32::sin(rad);
+    m_r.m[5] =  f32::cos(rad);
     
     m_r * m
 }
@@ -651,8 +701,8 @@ fn rotate_z_deg(m: &mat4, deg: f32) -> Mat4 {
 // scale a matrix by [x, y, z]
 fn scale(m: &Mat4, v: &Vec3) -> Mat4 {
     let mut a = Mat4::identity();
-    a.m[0] = v.v[0];
-    a.m[5] = v.v[1];
+    a.m[0]  = v.v[0];
+    a.m[5]  = v.v[1];
     a.m[10] = v.v[2];
     
     a * m

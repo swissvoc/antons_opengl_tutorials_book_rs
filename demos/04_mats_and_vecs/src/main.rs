@@ -15,6 +15,8 @@ use std::ptr;
 use std::fs::{File};
 use std::io::{Read};
 use std::process;
+use gl_utils::*;
+use gl_math::*;
 
 
 const GL_LOG_FILE: &str = "gl.log";
@@ -173,7 +175,7 @@ fn print_all(sp: GLuint) {
 fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usize) -> bool {
     let file = File::open(file_name);
     if file.is_err() {
-        gl_utils::gl_log_err(&format!("ERROR: opening file for reading: {}\n", file_name));
+        gl_log_err(&format!("ERROR: opening file for reading: {}\n", file_name));
         return false;
     }
 
@@ -181,13 +183,13 @@ fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usize) -
 
     let bytes_read = file.read(shader_str);
     if bytes_read.is_err() {
-        gl_utils::gl_log_err(&format!("ERROR: reading shader file {}\n", file_name));
+        gl_log_err(&format!("ERROR: reading shader file {}\n", file_name));
         return false;
     }
 
     let bytes_read = bytes_read.unwrap();
     if bytes_read >= (max_len - 1) {
-        gl_utils::gl_log_err(&format!("WARNING: file {} too big - truncated.\n", file_name));
+        gl_log_err(&format!("WARNING: file {} too big - truncated.\n", file_name));
     }
 
     // append \0 to end of file string.
@@ -207,22 +209,23 @@ fn main() {
 
     // The matrix is represented in column major order in memory.
     // That is, `matrix` is of the form matrix[COLUMN][ROW].
-    let mut matrix: [GLfloat; 16] = [ 
+    let mut matrix: Mat4 = mat4(
         1.0, 0.0, 0.0, 0.0, // First column 
         0.0, 1.0, 0.0, 0.0, // Second column 
         0.0, 0.0, 1.0, 0.0, // Third column 
-        0.5, 0.0, 0.0, 1.0  // Fourth column 
-    ];
+        0.0, 0.0, 0.0, 1.0  // Fourth column 
+    );
 
-    let mut m_Rxy: [GLfloat; 16] = [
+    let mut m_Rxy: Mat4 = mat4(
         1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,
         0.0, 0.0, 1.0, 0.0,
         0.0, 0.0, 0.0, 1.0,
-    ];
+    );
+    m_Rxy = rotate_z_deg(&m_Rxy, 0.8);
 
-    gl_utils::restart_gl_log();
-    let (mut glfw, mut window, events) = gl_utils::start_gl().unwrap();
+    restart_gl_log();
+    let (mut glfw, mut window, events) = start_gl().unwrap();
     unsafe {
         // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
         // Enable depth-testing.
@@ -315,27 +318,30 @@ fn main() {
         let mut last_position = 0.0;
         while !window.should_close() {
             // Add timer for doing animation.
-            gl_utils::PREVIOUS_SECONDS = glfw.get_time();
+            PREVIOUS_SECONDS = glfw.get_time();
             let current_seconds = glfw.get_time();
-            let elapsed_seconds = current_seconds - gl_utils::PREVIOUS_SECONDS;
-            gl_utils::PREVIOUS_SECONDS = current_seconds;
+            let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
+            PREVIOUS_SECONDS = current_seconds;
 
             // Reverse direction when we go too far left or right.
             if f32::abs(last_position) > 1.0 {
                 speed = -speed;
             }
 
+            let dx = (elapsed_seconds as GLfloat) * speed;
             // Update the matrix.
-            matrix[12] = (elapsed_seconds as GLfloat) * speed + last_position;
-            last_position = matrix[12];
+            matrix = translate(&matrix, &vec3(dx, 0.0, 0.0)) * &m_Rxy;
+
+            // Update the last position.
+            last_position += dx;
+
             gl::UseProgram(shader_programme);
             gl::UniformMatrix4fv(matrix_location, 1, gl::FALSE, matrix.as_ptr());
 
-            //gl_utils::_update_fps_counter(&mut glfw, &mut window);
             // Wipe the drawing surface clear.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::ClearColor(0.3, 0.3, 0.3, 1.0);
-            gl::Viewport(0, 0, gl_utils::G_GL_WIDTH as GLint, gl_utils::G_GL_HEIGHT as GLint);
+            gl::Viewport(0, 0, G_GL_WIDTH as GLint, G_GL_HEIGHT as GLint);
 
             gl::BindVertexArray(vao);
             // Draw points 0-3 from the currently bound VAO with current in-use shader.
