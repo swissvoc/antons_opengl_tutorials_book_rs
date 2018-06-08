@@ -335,6 +335,13 @@ fn main() {
         // Depth-testing interprets a smaller value as "closer".
         gl::DepthFunc(gl::LESS);
 
+        // Cull face
+        gl::Enable(gl::CULL_FACE);
+        // Cull back face.
+        gl::CullFace(gl::BACK);
+         // GL_CCW for counter clock-wise.
+        gl::FrontFace(gl::CW);
+
         while !window.should_close() {
             // Add timer for doing animation.
             PREVIOUS_SECONDS = glfw.get_time();
