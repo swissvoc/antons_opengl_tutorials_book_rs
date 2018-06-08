@@ -290,13 +290,13 @@ fn main() {
         let mut speed = 1.0 * 1e4;
         let mut last_position = 0.0;
         // Camera parameters.
-        let mut cam_speed = 1.0;       // 1 unit per second.
-        let mut cam_yaw_speed = 10.0;  // 10 degrees per second.
+        let mut cam_speed = 1.0 * 2e4;       // 1 unit per second.
+        let mut cam_yaw_speed = 10.0 * 2e4;  // 10 degrees per second.
         let mut cam_pos = [0.0, 0.0, 2.0];
         let mut cam_yaw = 0.0;
         // Camera translation and rotation.
-        let mut T = translate(&Mat4::identity(), &vec3(-cam_pos[0], -cam_pos[1], -cam_pos[2]));
-        let mut R = rotate_y_deg(&Mat4::identity(), -cam_yaw);
+        let T = translate(&Mat4::identity(), &vec3(-cam_pos[0], -cam_pos[1], -cam_pos[2]));
+        let R = rotate_y_deg(&Mat4::identity(), -cam_yaw);
         let view_mat = &R * &T;
 
         // Set up project matrix. We will put this into a math function later.
@@ -317,8 +317,6 @@ fn main() {
             0.0, 0.0, Pz,  0.0
         );
 
-        let id_mat = Mat4::identity();
-
         let view_mat_location = gl::GetUniformLocation(shader_programme, "view".as_ptr() as *const i8);
         assert!(view_mat_location != -1);
         let proj_mat_location = gl::GetUniformLocation(shader_programme, "proj".as_ptr() as *const i8);
@@ -337,7 +335,7 @@ fn main() {
             // Add timer for doing animation.
             PREVIOUS_SECONDS = glfw.get_time();
             let current_seconds = glfw.get_time();
-            let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
+            let elapsed_seconds = (current_seconds - PREVIOUS_SECONDS) as f32;
             PREVIOUS_SECONDS = current_seconds;
 
             // Wipe the drawing surface clear.
@@ -351,17 +349,85 @@ fn main() {
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
             // Update other events like input handling.
             glfw.poll_events();
-            for (_, event) in glfw::flush_messages(&events) {
-                match event {
-                    glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                        window.set_should_close(true);
-                    }
-                    _ => {
+            
+            /*-----------------------------move camera
+         
+            * here-------------------------------*/
+            // Control keys
+            let mut cam_moved = false;
 
-                    }
+            match window.get_key(Key::A) {
+                Action::Press | Action::Repeat => {
+                    cam_pos[0] -= cam_speed * elapsed_seconds;
+                    cam_moved = true;
                 }
+                _ => {}
+            }
+            match window.get_key(Key::D) {
+                Action::Press | Action::Repeat => {
+                    cam_pos[0] += cam_speed * elapsed_seconds;
+                    cam_moved = true;
+                }
+                _ => {}
+            }
+            match window.get_key(Key::PageUp) {
+                Action::Press | Action::Repeat => {
+                    cam_pos[1] += cam_speed * elapsed_seconds;
+                    cam_moved = true;
+                }
+                _ => {}
+            }
+            match window.get_key(Key::PageDown) {
+                Action::Press | Action::Repeat => {
+                    cam_pos[1] -= cam_speed * elapsed_seconds;
+                    cam_moved = true;
+                }
+                _ => {}
+            }
+            match window.get_key(Key::W) {
+                Action::Press | Action::Repeat => {
+                    cam_pos[2] -= cam_speed * elapsed_seconds;
+                    cam_moved = true;                        
+                }
+                _ => {}
+            }
+            match window.get_key(Key::S) {
+                Action::Press | Action::Repeat => {
+                    cam_pos[2] += cam_speed * elapsed_seconds;
+                    cam_moved = true;
+                }
+                _ => {}                
+            }
+            match window.get_key(Key::Left) {
+                Action::Press | Action::Repeat => {
+                    cam_yaw += cam_yaw_speed * elapsed_seconds;
+                    cam_moved = true;                        
+                }
+                _ => {}
+            }
+            match window.get_key(Key::Right) {
+                Action::Press | Action::Repeat => {
+                    cam_yaw -= cam_yaw_speed * elapsed_seconds;
+                    cam_moved = true;                        
+                }
+                _ => {}
             }
 
+            /* update view matrix */
+            if cam_moved {
+                let T = translate(&Mat4::identity(), &vec3(-cam_pos[0], -cam_pos[1], -cam_pos[2])); // cam translation
+                let R = rotate_y_deg(&Mat4::identity(), -cam_yaw);
+                let view_mat = &R * &T;
+                gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
+            }
+
+            match window.get_key(Key::Escape) {
+                Action::Press | Action::Repeat => {
+                    window.set_should_close(true);
+                }
+                _ => {}
+            }
+            
             // Put the stuff we've been drawing onto the display.
             window.swap_buffers();
         }
