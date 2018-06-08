@@ -198,6 +198,10 @@ fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usize) -
     return true;
 }
 
+fn default_camera_pos() -> [f32; 3] {
+    [0.0, 0.0, 2.0]
+}
+
 fn main() {
     let points: [GLfloat; 9] = [
         0.0,  0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0
@@ -292,7 +296,7 @@ fn main() {
         // Camera parameters.
         let mut cam_speed = 1.0 * 2e4;       // 1 unit per second.
         let mut cam_yaw_speed = 10.0 * 2e4;  // 10 degrees per second.
-        let mut cam_pos = [0.0, 0.0, 2.0];
+        let mut cam_pos = default_camera_pos();
         let mut cam_yaw = 0.0;
         // Camera translation and rotation.
         let T = translate(&Mat4::identity(), &vec3(-cam_pos[0], -cam_pos[1], -cam_pos[2]));
@@ -409,6 +413,13 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_yaw -= cam_yaw_speed * elapsed_seconds;
                     cam_moved = true;                        
+                }
+                _ => {}
+            }
+            match window.get_key(Key::R) {
+                Action::Press | Action::Repeat => {
+                    cam_pos = default_camera_pos();
+                    cam_moved = true;
                 }
                 _ => {}
             }
