@@ -43,17 +43,17 @@ impl Vec3 {
         Vec3 { v: [0.0, 0.0, 0.0] }
     }
     
-    pub fn length(&self) -> f32 {
+    pub fn norm(&self) -> f32 {
         f32::sqrt(self.v[0] * self.v[0] + self.v[1] * self.v[1] + self.v[2] * self.v[2])
     }
 
     // Squared length.
-    pub fn length2(&self) -> f32 {
+    pub fn norm2(&self) -> f32 {
         self.v[0] * self.v[0] + self.v[1] * self.v[1] + self.v[2] * self.v[2]
     }
 
     pub fn normalize(&self) -> Vec3 {
-        let norm_v = self.length();
+        let norm_v = self.norm();
         if norm_v == 0.0 {
             return Vec3::zero();
         }
@@ -617,6 +617,36 @@ impl Mat4 {
             0.0, 0.0, 1.0, 0.0, 
             0.0, 0.0, 0.0, 1.0
         )
+    }
+
+    /// returns a scalar value with the determinant for a 4x4 matrix
+    /// see
+    /// http://www.euclideanspace.com/maths/algebra/matrix/functions/determinant/fourD/index.htm
+    pub fn determinant(&self) -> f32 {
+        self.m[12] * self.m[9]  * self.m[6]  * self.m[3]  -
+        self.m[8]  * self.m[13] * self.m[6]  * self.m[3]  -
+        self.m[12] * self.m[5]  * self.m[10] * self.m[3]  +
+        self.m[4]  * self.m[13] * self.m[10] * self.m[3]  +
+        self.m[8]  * self.m[5]  * self.m[14] * self.m[3]  -
+        self.m[4]  * self.m[9]  * self.m[14] * self.m[3]  -
+        self.m[12] * self.m[9]  * self.m[2]  * self.m[7]  +
+        self.m[8]  * self.m[13] * self.m[2]  * self.m[7]  +
+        self.m[12] * self.m[1]  * self.m[10] * self.m[7]  -
+        self.m[0]  * self.m[13] * self.m[10] * self.m[7]  -
+        self.m[8]  * self.m[1]  * self.m[14] * self.m[7]  +
+        self.m[0]  * self.m[9]  * self.m[14] * self.m[7]  +
+        self.m[12] * self.m[5]  * self.m[2]  * self.m[11] -
+        self.m[4]  * self.m[13] * self.m[2]  * self.m[11] -
+        self.m[12] * self.m[1]  * self.m[6]  * self.m[11] +
+        self.m[0]  * self.m[13] * self.m[6]  * self.m[11] +
+        self.m[4]  * self.m[1]  * self.m[14] * self.m[11] -
+        self.m[0]  * self.m[5]  * self.m[14] * self.m[11] -
+        self.m[8]  * self.m[5]  * self.m[2]  * self.m[15] +
+        self.m[4]  * self.m[9]  * self.m[2]  * self.m[15] +
+        self.m[8]  * self.m[1]  * self.m[6]  * self.m[15] -
+        self.m[0]  * self.m[9]  * self.m[6]  * self.m[15] -
+        self.m[4]  * self.m[1]  * self.m[10] * self.m[15] +
+        self.m[0]  * self.m[5]  * self.m[10] * self.m[15]
     }
 
     pub fn as_ptr(&self) -> *const f32 {
