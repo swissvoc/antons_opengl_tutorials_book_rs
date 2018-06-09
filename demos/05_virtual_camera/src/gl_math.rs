@@ -15,7 +15,7 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
-    fn new(x: f32, y: f32) -> Vec2 {
+    pub fn new(x: f32, y: f32) -> Vec2 {
         Vec2 { v: [x, y] }
     }
 }
@@ -470,7 +470,7 @@ pub struct Mat3 {
 }
 
 impl Mat3 {
-    fn new(m11: f32, m12: f32, m13: f32, 
+    pub fn new(m11: f32, m12: f32, m13: f32, 
            m21: f32, m22: f32, m23: f32, 
            m31: f32, m32: f32, m33: f32) -> Mat3 {
 
@@ -483,11 +483,11 @@ impl Mat3 {
         }
     }
 
-    fn zero() -> Mat3 {
+    pub fn zero() -> Mat3 {
         Mat3::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     }
 
-    fn identity() -> Mat3 {
+    pub fn identity() -> Mat3 {
         Mat3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     }
 }
