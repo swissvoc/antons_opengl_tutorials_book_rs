@@ -9,6 +9,7 @@ pub const ONE_DEG_IN_RAD: f32 = (2.0 * M_PI) / 360.0; // == 0.017444444
 pub const ONE_RAD_IN_DEG: f32 = 360.0 / (2.0 * M_PI); // == 57.2957795
 
 
+#[derive(Copy, Clone, Debug)]
 pub struct Vec2 {
     v: [f32; 2],
 }
@@ -30,6 +31,7 @@ impl fmt::Display for Vec2 {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Vec3 {
     v: [f32; 3],
 }
