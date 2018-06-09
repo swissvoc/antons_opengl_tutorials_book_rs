@@ -335,7 +335,7 @@ fn main() {
         // Depth-testing interprets a smaller value as "closer".
         gl::DepthFunc(gl::LESS);
 
-        // Cull face
+        // Cull face.
         gl::Enable(gl::CULL_FACE);
         // Cull back face.
         gl::CullFace(gl::BACK);

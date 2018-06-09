@@ -35,12 +35,50 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
-    fn new(x: f32, y: f32, z: f32) -> Vec3 {
+    pub fn new(x: f32, y: f32, z: f32) -> Vec3 {
         Vec3 { v: [x, y, z] }
     }
 
-    fn zero() -> Vec3 {
+    pub fn zero() -> Vec3 {
         Vec3 { v: [0.0, 0.0, 0.0] }
+    }
+    
+    pub fn length(&self) -> f32 {
+        f32::sqrt(self.v[0] * self.v[0] + self.v[1] * self.v[1] + self.v[2] * self.v[2])
+    }
+
+    // Squared length.
+    pub fn length2(&self) -> f32 {
+        self.v[0] * self.v[0] + self.v[1] * self.v[1] + self.v[2] * self.v[2]
+    }
+
+    pub fn normalize(&self) -> Vec3 {
+        let norm_v = self.length();
+        if norm_v == 0.0 {
+            return Vec3::zero();
+        }
+
+        Vec3::new(self.v[0] / norm_v, self.v[1] / norm_v, self.v[2] / norm_v)
+    }
+
+    pub fn dot(&self, other: &Vec3) -> f32 {
+        self.v[0] * other.v[0] + self.v[1] * other.v[1] + self.v[2] * other.v[2]
+    }
+
+    pub fn cross(&self, other: &Vec3) -> Vec3 {
+        let x = self.v[1] * other.v[2] - self.v[2] * other.v[1];
+        let y = self.v[2] * other.v[0] - self.v[0] * other.v[2];
+        let z = self.v[0] * other.v[1] - self.v[1] * other.v[0];
+    
+        Vec3::new(x, y, z)
+    }
+
+    pub fn get_squared_dist(&self, to: &Vec3) -> f32 {
+        let x = ( to.v[0] - self.v[0] ) * ( to.v[0] - self.v[0] );
+        let y = ( to.v[1] - self.v[1] ) * ( to.v[1] - self.v[1] );
+        let z = ( to.v[2] - self.v[2] ) * ( to.v[2] - self.v[2] );
+    
+        x + y + z
     }
 }
 
@@ -53,44 +91,6 @@ impl fmt::Display for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{:.2}, {:.2}, {:.2}]", self.v[0], self.v[1], self.v[2])
     }
-}
-
-pub fn length(v: &Vec3) -> f32 {
-    f32::sqrt(v.v[0] * v.v[0] + v.v[1] * v.v[1] + v.v[2] * v.v[2])
-}
-
-// Squared length.
-fn length2(v: &Vec3) -> f32 {
-    v.v[0] * v.v[0] + v.v[1] * v.v[1] + v.v[2] * v.v[2]
-}
-
-fn normalize(v: &Vec3) -> Vec3 {
-    let norm_v = length(v);
-    if norm_v == 0.0 {
-        return Vec3::zero();
-    }
-
-    Vec3::new(v.v[0] / norm_v, v.v[1] / norm_v, v.v[2] / norm_v)
-}
-
-fn dot(a: &Vec3, b: &Vec3) -> f32 {
-    a.v[0] * b.v[0] + a.v[1] * b.v[1] + a.v[2] * b.v[2]
-}
-
-fn cross(a: &Vec3, b: &Vec3) -> Vec3 {
-    let x = a.v[1] * b.v[2] - a.v[2] * b.v[1];
-    let y = a.v[2] * b.v[0] - a.v[0] * b.v[2];
-    let z = a.v[0] * b.v[1] - a.v[1] * b.v[0];
-    
-    Vec3::new(x, y, z)
-}
-
-fn get_squared_dist(from: Vec3, to: Vec3) -> f32 {
-    let x = ( to.v[0] - from.v[0] ) * ( to.v[0] - from.v[0] );
-    let y = ( to.v[1] - from.v[1] ) * ( to.v[1] - from.v[1] );
-    let z = ( to.v[2] - from.v[2] ) * ( to.v[2] - from.v[2] );
-    
-    x + y + z
 }
 
 impl<'a> ops::Add<Vec3> for &'a Vec3 {
@@ -433,13 +433,18 @@ impl<'a> ops::DivAssign<f32> for &'a mut Vec3 {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Vec4 {
     v: [f32; 4],
 }
 
 impl Vec4 {
-    fn new(x: f32, y: f32, z: f32, w: f32) -> Vec4 {
+    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Vec4 {
         Vec4 { v: [x, y, z, w] }
+    }
+
+    pub fn zero() -> Vec4 {
+        Vec4 { v: [0.0, 0.0, 0.0, 0.0] }
     }
 }
 
@@ -457,6 +462,7 @@ impl fmt::Display for Vec4 {
 ///
 /// The `Mat3` type represents 3x3 matrices in column-major order.
 ///
+#[derive(Copy, Clone, Debug)]
 pub struct Mat3 {
     v: [f32; 9],
 }
@@ -495,26 +501,28 @@ impl fmt::Display for Mat3 {
     }
 }
 
+#[inline]
 fn mat3(m11: f32, m12: f32, m13: f32, 
         m21: f32, m22: f32, m23: f32, 
         m31: f32, m32: f32, m33: f32) -> Mat3 {
 
     Mat3::new(m11, m12, m13, m21, m22, m23, m31, m32, m33)
-
 }
 
 ///
 /// The `Mat4` type represents 4x4 matrices in column-major order.
 ///
+#[derive(Copy, Clone, Debug)]
 pub struct Mat4 {
     pub m: [f32; 16],
 }
 
 impl Mat4 {
-    pub fn new(m11: f32, m12: f32, m13: f32, m14: f32,
-           m21: f32, m22: f32, m23: f32, m24: f32,
-           m31: f32, m32: f32, m33: f32, m34: f32,
-           m41: f32, m42: f32, m43: f32, m44: f32) -> Mat4 {
+    pub fn new(
+        m11: f32, m12: f32, m13: f32, m14: f32,
+        m21: f32, m22: f32, m23: f32, m24: f32,
+        m31: f32, m32: f32, m33: f32, m34: f32,
+        m41: f32, m42: f32, m43: f32, m44: f32) -> Mat4 {
 
         Mat4 {
             m: [
@@ -628,7 +636,8 @@ impl fmt::Display for Mat4 {
     }
 }
 
-pub fn mat4(m11: f32, m12: f32, m13: f32, m14: f32, 
+pub fn mat4(
+        m11: f32, m12: f32, m13: f32, m14: f32, 
         m21: f32, m22: f32, m23: f32, m24: f32,
         m31: f32, m32: f32, m33: f32, m34: f32,
         m41: f32, m42: f32, m43: f32, m44: f32) -> Mat4 {
@@ -644,13 +653,13 @@ impl ops::Mul<Vec4> for Mat4 {
 
     fn mul(self, other: Vec4) -> Self::Output {
         // x = m[0] * v_x + m[4] * 4v_y + m[8] * v_z + m[12] * v_w
-        let x = self.m[0] * other.v[0] + self.m[4] * other.v[1] + self.m[8] * other.v[2] + self.m[12] * other.v[3];
+        let x = self.m[0]*other.v[0] + self.m[4] * other.v[1] + self.m[8]  * other.v[2] + self.m[12] * other.v[3];
         // y = m[1]*v_x + m[5]*4v_y + m[9]*v_z + m[13]*v_w
-        let y = self.m[1] * other.v[0] + self.m[5] * other.v[1] + self.m[9] * other.v[2] + self.m[13] * other.v[3];
+        let y = self.m[1]*other.v[0] + self.m[5] * other.v[1] + self.m[9]  * other.v[2] + self.m[13] * other.v[3];
         // z = m[2]*v_x + m[6]*4v_y + m[10]*v_z + m[14]*v_w
-        let z = self.m[2] * other.v[0] + self.m[6] * other.v[1] + self.m[10] * other.v[2] + self.m[14] * other.v[3];
+        let z = self.m[2]*other.v[0] + self.m[6] * other.v[1] + self.m[10] * other.v[2] + self.m[14] * other.v[3];
         // w = m[3]*v_x + m[7]*4v_y + m[11]*v_z + m[15]*v_w
-        let w = self.m[3] * other.v[0] + self.m[7] * other.v[1] + self.m[11] * other.v[2] + self.m[15] * other.v[3];
+        let w = self.m[3]*other.v[0] + self.m[7] * other.v[1] + self.m[11] * other.v[2] + self.m[15] * other.v[3];
         
         Vec4::new(x, y, z, w)
     }
@@ -721,8 +730,8 @@ impl Versor {
         // only compute sqrt if interior sum != 1.0
         let sum = self.q[0] * self.q[0] + self.q[1] * self.q[1] + self.q[2] * self.q[2] + self.q[3] * self.q[3];
         // NB: Floats have min 6 digits of precision.
-        let thresh = 0.0001;
-        if f32::abs(1.0 - sum) < thresh {
+        let threshold = 0.0001;
+        if f32::abs(1.0 - sum) < threshold {
             return *self;
         }
 
@@ -730,26 +739,26 @@ impl Versor {
         self / norm
     }
 
-    pub fn dot(q: &Versor, r: &Versor) -> f32 {
-        q.q[0] * r.q[0] + q.q[1] * r.q[1] + q.q[2] * r.q[2] + q.q[3] * r.q[3]
+    pub fn dot(&self, r: &Versor) -> f32 {
+        self.q[0] * r.q[0] + self.q[1] * r.q[1] + self.q[2] * r.q[2] + self.q[3] * r.q[3]
     }
 
-    pub fn quat_from_axis_rad(radians: f32, x: f32, y: f32, z: f32) -> Versor {
+    pub fn from_axis_rad(radians: f32, x: f32, y: f32, z: f32) -> Versor {
         Versor {
             q: [
-                f32::cos( radians / 2.0 ),
-                f32::sin( radians / 2.0 ) * x,
-                f32::sin( radians / 2.0 ) * y,
-                f32::sin( radians / 2.0 ) * z,
+                f32::cos(radians / 2.0),
+                f32::sin(radians / 2.0) * x,
+                f32::sin(radians / 2.0) * y,
+                f32::sin(radians / 2.0) * z,
             ]
         }
     }
 
-    pub fn quat_from_axis_deg(degrees: f32, x: f32, y: f32, z: f32) -> Versor {
-        Self::quat_from_axis_rad(ONE_DEG_IN_RAD * degrees, x, y, z)
+    pub fn from_axis_deg(degrees: f32, x: f32, y: f32, z: f32) -> Versor {
+        Self::from_axis_rad(ONE_DEG_IN_RAD * degrees, x, y, z)
     }
 
-    pub fn quat_to_mat4(&self) -> Mat4 {
+    pub fn to_mat4(&self) -> Mat4 {
         let w = self.q[0];
         let x = self.q[1];
         let y = self.q[2];
