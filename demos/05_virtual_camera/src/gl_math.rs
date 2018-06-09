@@ -699,12 +699,106 @@ pub fn rotate_z_deg(m: &Mat4, deg: f32) -> Mat4 {
 }
 
 // scale a matrix by [x, y, z]
-fn scale(m: &Mat4, v: &Vec3) -> Mat4 {
+pub fn scale(m: &Mat4, v: &Vec3) -> Mat4 {
     let mut a = Mat4::identity();
     a.m[0]  = v.v[0];
     a.m[5]  = v.v[1];
     a.m[10] = v.v[2];
     
     a * m
+}
+
+
+struct Versor {
+    q: [f32; 4],
+}
+
+impl fmt::Display for Versor {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "[{:.2}, {:.2}, {:.2f}, {:.2f]}", q.q[0], q.q[1], q.q[2], q.q[3])
+    }
+}
+
+impl ops::Div<f32> for Versor {
+    type Output = Versor;
+
+    fn div(self, other: f32) -> Versor {
+        Versor {
+            q: [
+                self.q[0] / other, 
+                self.q[1] / other, 
+                self.q[2] / other, 
+                self.q[3] / other,
+            ]
+        }
+    }
+}
+
+impl ops::Mul<f32> for Versor {
+    type Output = Versor;
+
+    fn mul(self, other: f32) -> Versor {
+        Versor {
+            q: [
+                self.q[0] * other,
+                self.q[1] * other,
+                self.q[2] * other,
+                self.q[3] * other,
+            ]
+        }
+    }
+}
+
+impl<'a> ops::Mul(&'a Versor) for Versor {
+    type Output = Versor;
+
+    fn mul(self, other: &'a Versor) -> Self::Output {
+        let result = Versor {
+            q: [
+                other.q[0] * self.q[0] - other.q[1] * self.q[1] - other.q[2] * self.q[2] - other.q[3] * self.q[3],
+                other.q[0] * self.q[1] + other.q[1] * self.q[0] - other.q[2] * self.q[3] + other.q[3] * self.q[2],
+                other.q[0] * self.q[2] + other.q[1] * self.q[3] + other.q[2] * self.q[0] - other.q[3] * self.q[1],
+                other.q[0] * self.q[3] - other.q[1] * self.q[2] + other.q[2] * self.q[1] + other.q[3] * self.q[0],
+            ]
+        };
+        // Renormalize in case of mangling.
+        normalize(result)
+    }
+}
+
+impl<'a> ops::Add(&'a Versor) for Versor {
+    type Output = Versor;
+
+    fn add(self, other: &'a Versor) -> Self::Output {
+        let result = Versor {
+            q: [
+                other.q[0] + self.q[0],
+                other.q[1] + self.q[1],
+                other.q[2] + self.q[2],
+                other.q[3] + self.q[3],
+            ]
+        };
+        // Renormalize in case of mangling.
+        normalize(result)
+    }
+}
+
+fn normalize(q: &Versor) -> Versor {
+    // norm(q) = q / magnitude (q)
+    // magnitude (q) = sqrt (w*w + x*x...)
+    // only compute sqrt if interior sum != 1.0
+    let sum = q.q[0] * q.q[0] + q.q[1] * q.q[1] + q.q[2] * q.q[2] + q.q[3] * q.q[3];
+    // NB: Floats have min 6 digits of precision.
+    let thresh = 0.0001;
+    if f32::abs(1.0 - sum) < thresh {
+        return q;
+    }
+
+    let norm = f32::sqrt(sum);
+    q / norm
+}
+
+fn dot(q: &Versor, r: &Versor) -> Versor {
+    q.q[0] * r.q[0] + q.q[1] * r.q[1] + q.q[2] * r.q[2] + q.q[3] * r.q[3]
 }
 

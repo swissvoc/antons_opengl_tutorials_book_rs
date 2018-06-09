@@ -398,7 +398,7 @@ fn main() {
             match window.get_key(Key::W) {
                 Action::Press | Action::Repeat => {
                     cam_pos[2] -= cam_speed * elapsed_seconds;
-                    cam_moved = true;                        
+                    cam_moved = true;
                 }
                 _ => {}
             }
@@ -412,14 +412,14 @@ fn main() {
             match window.get_key(Key::Left) {
                 Action::Press | Action::Repeat => {
                     cam_yaw += cam_yaw_speed * elapsed_seconds;
-                    cam_moved = true;                        
+                    cam_moved = true;
                 }
                 _ => {}
             }
             match window.get_key(Key::Right) {
                 Action::Press | Action::Repeat => {
                     cam_yaw -= cam_yaw_speed * elapsed_seconds;
-                    cam_moved = true;                        
+                    cam_moved = true;
                 }
                 _ => {}
             }
