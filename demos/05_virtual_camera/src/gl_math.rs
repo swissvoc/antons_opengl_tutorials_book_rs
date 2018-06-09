@@ -3,10 +3,10 @@ use std::ops;
 
 
 // Constants used to convert degrees into radians.
-const M_PI: f32 = 3.14159265358979323846264338327950288;
-const TAU: f32 = 2.0 * M_PI;
+pub const M_PI: f32 = 3.14159265358979323846264338327950288;
+pub const TAU: f32 = 2.0 * M_PI;
 pub const ONE_DEG_IN_RAD: f32 = (2.0 * M_PI) / 360.0; // == 0.017444444
-const ONE_RAD_IN_DEG: f32 = 360.0 / (2.0 * M_PI); // == 57.2957795
+pub const ONE_RAD_IN_DEG: f32 = 360.0 / (2.0 * M_PI); // == 57.2957795
 
 
 pub struct Vec2 {
