@@ -618,12 +618,12 @@ impl Mat4 {
 
     // scale a matrix by [x, y, z]
     pub fn scale(&self, v: &Vec3) -> Mat4 {
-        let mut a = Mat4::identity();
-        a.m[0]  = v.v[0];
-        a.m[5]  = v.v[1];
-        a.m[10] = v.v[2];
+        let mut m_s = Mat4::identity();
+        m_s.m[0]  = v.v[0];
+        m_s.m[5]  = v.v[1];
+        m_s.m[10] = v.v[2];
     
-        a * self
+        m_s * self
     }
 
     /// returns a scalar value with the determinant for a 4x4 matrix
