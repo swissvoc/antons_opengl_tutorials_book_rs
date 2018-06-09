@@ -535,6 +535,73 @@ impl Mat4 {
         )
     }
 
+    pub fn transpose(&self) -> Mat4 {
+        Mat4::new(
+            self.m[0], self.m[4], self.m[8],  self.m[12],
+            self.m[1], self.m[5], self.m[9],  self.m[13], 
+            self.m[2], self.m[6], self.m[10], self.m[14], 
+            self.m[3], self.m[7], self.m[11], self.m[15]
+        )
+    }
+
+    pub fn translate(&self, v: &Vec3) -> Mat4 {
+        let mut m_t = Mat4::identity();
+        m_t.m[12] = v.v[0];
+        m_t.m[13] = v.v[1];
+        m_t.m[14] = v.v[2];
+
+        m_t * self
+    }
+
+    // Rotate around x axis by an angle in degrees.
+    pub fn rotate_x_deg(&self, deg: f32) -> Mat4 {
+        // Convert to radians.
+        let rad = deg * ONE_DEG_IN_RAD;
+        let mut m_r = Mat4::identity();
+        m_r.m[5]  =  f32::cos(rad);
+        m_r.m[9]  = -f32::sin(rad);
+        m_r.m[6]  =  f32::sin(rad);
+        m_r.m[10] =  f32::cos(rad);
+    
+        m_r * self
+    }
+
+    // Rotate around y axis by an angle in degrees.
+    pub fn rotate_y_deg(&self, deg: f32) -> Mat4 {
+        // Convert to radians.
+        let rad = deg * ONE_DEG_IN_RAD;
+        let mut m_r = Mat4::identity();
+        m_r.m[0]  =  f32::cos(rad);
+        m_r.m[8]  =  f32::sin(rad);
+        m_r.m[2]  = -f32::sin(rad);
+        m_r.m[10] =  f32::cos(rad);
+    
+        m_r * self
+    }
+
+    // Rotate around z axis by an angle in degrees.
+    pub fn rotate_z_deg(&self, deg: f32) -> Mat4 {
+        // Convert to radians.
+        let rad = deg * ONE_DEG_IN_RAD;
+        let mut m_r = Mat4::identity();
+        m_r.m[0] =  f32::cos(rad);
+        m_r.m[4] = -f32::sin(rad);
+        m_r.m[1] =  f32::sin(rad);
+        m_r.m[5] =  f32::cos(rad);
+    
+        m_r * self
+    }
+
+    // scale a matrix by [x, y, z]
+    pub fn scale(&self, v: &Vec3) -> Mat4 {
+        let mut a = Mat4::identity();
+        a.m[0]  = v.v[0];
+        a.m[5]  = v.v[1];
+        a.m[10] = v.v[2];
+    
+        a * self
+    }
+
     pub fn identity() -> Mat4 {
         Mat4::new(
             1.0, 0.0, 0.0, 0.0, 
@@ -641,85 +708,84 @@ impl<'a, 'b> ops::Mul<&'a Mat4> for &'b Mat4 {
     }
 }
 
-pub fn transpose(mm: &Mat4) -> Mat4 {
-    Mat4::new(
-        mm.m[0], mm.m[4], mm.m[8],  mm.m[12],
-        mm.m[1], mm.m[5], mm.m[9],  mm.m[13], 
-        mm.m[2], mm.m[6], mm.m[10], mm.m[14], 
-        mm.m[3], mm.m[7], mm.m[11], mm.m[15]
-    )
-}
 
-pub fn translate(mm: &Mat4, v: &Vec3) -> Mat4 {
-    let mut m_t = Mat4::identity();
-    m_t.m[12] = v.v[0];
-    m_t.m[13] = v.v[1];
-    m_t.m[14] = v.v[2];
-
-    m_t * mm
-}
-
-// Rotate around x axis by an angle in degrees.
-fn rotate_x_deg(m: &Mat4, deg: f32) -> Mat4 {
-    // Convert to radians.
-    let rad = deg * ONE_DEG_IN_RAD;
-    let mut m_r = Mat4::identity();
-    m_r.m[5]  =  f32::cos(rad);
-    m_r.m[9]  = -f32::sin(rad);
-    m_r.m[6]  =  f32::sin(rad);
-    m_r.m[10] =  f32::cos(rad);
-    
-    m_r * m
-}
-
-// Rotate around y axis by an angle in degrees.
-pub fn rotate_y_deg(m: &Mat4, deg: f32) -> Mat4 {
-    // Convert to radians.
-    let rad = deg * ONE_DEG_IN_RAD;
-    let mut m_r = Mat4::identity();
-    m_r.m[0]  =  f32::cos(rad);
-    m_r.m[8]  =  f32::sin(rad);
-    m_r.m[2]  = -f32::sin(rad);
-    m_r.m[10] =  f32::cos(rad);
-    
-    m_r * m
-}
-
-// Rotate around z axis by an angle in degrees.
-pub fn rotate_z_deg(m: &Mat4, deg: f32) -> Mat4 {
-    // Convert to radians.
-    let rad = deg * ONE_DEG_IN_RAD;
-    let mut m_r = Mat4::identity();
-    m_r.m[0] =  f32::cos(rad);
-    m_r.m[4] = -f32::sin(rad);
-    m_r.m[1] =  f32::sin(rad);
-    m_r.m[5] =  f32::cos(rad);
-    
-    m_r * m
-}
-
-// scale a matrix by [x, y, z]
-pub fn scale(m: &Mat4, v: &Vec3) -> Mat4 {
-    let mut a = Mat4::identity();
-    a.m[0]  = v.v[0];
-    a.m[5]  = v.v[1];
-    a.m[10] = v.v[2];
-    
-    a * m
-}
-
-
+#[derive(Copy, Clone, Debug)]
 struct Versor {
     q: [f32; 4],
 }
 
+impl Versor {
+    pub fn normalize(&self) -> Versor {
+        // normalize(q) = q / magnitude (q)
+        // magnitude (q) = sqrt (w*w + x*x...)
+        // only compute sqrt if interior sum != 1.0
+        let sum = self.q[0] * self.q[0] + self.q[1] * self.q[1] + self.q[2] * self.q[2] + self.q[3] * self.q[3];
+        // NB: Floats have min 6 digits of precision.
+        let thresh = 0.0001;
+        if f32::abs(1.0 - sum) < thresh {
+            return *self;
+        }
+
+        let norm = f32::sqrt(sum);
+        self / norm
+    }
+
+    pub fn dot(q: &Versor, r: &Versor) -> f32 {
+        q.q[0] * r.q[0] + q.q[1] * r.q[1] + q.q[2] * r.q[2] + q.q[3] * r.q[3]
+    }
+
+    pub fn quat_from_axis_rad(radians: f32, x: f32, y: f32, z: f32) -> Versor {
+        Versor {
+            q: [
+                f32::cos( radians / 2.0 ),
+                f32::sin( radians / 2.0 ) * x,
+                f32::sin( radians / 2.0 ) * y,
+                f32::sin( radians / 2.0 ) * z,
+            ]
+        }
+    }
+
+    pub fn quat_from_axis_deg(degrees: f32, x: f32, y: f32, z: f32) -> Versor {
+        Self::quat_from_axis_rad(ONE_DEG_IN_RAD * degrees, x, y, z)
+    }
+
+    pub fn quat_to_mat4(&self) -> Mat4 {
+        let w = self.q[0];
+        let x = self.q[1];
+        let y = self.q[2];
+        let z = self.q[3];
+    
+        mat4(
+            1.0 - 2.0 * y * y - 2.0 * z * z, 2.0 * x * y + 2.0 * w * z,       2.0 * x * z - 2.0 * w * y,       0.0, 
+            2.0 * x * y - 2.0 * w * z,       1.0 - 2.0 * x * x - 2.0 * z * z, 2.0 * y * z + 2.0 * w * x,       0.0, 
+            2.0 * x * z + 2.0 * w * y,       2.0 * y * z - 2.0 * w * x,       1.0 - 2.0 * x * x - 2.0 * y * y, 0.0, 
+            0.0,                             0.0,                             0.0,                             1.0
+        )
+    }
+}
+
 impl fmt::Display for Versor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "[{:.2}, {:.2}, {:.2f}, {:.2f]}", q.q[0], q.q[1], q.q[2], q.q[3])
+        writeln!(f, "[{:.2}, {:.2}, {:.2}, {:.2}]", self.q[0], self.q[1], self.q[2], self.q[3])
     }
 }
 
 impl ops::Div<f32> for Versor {
+    type Output = Versor;
+
+    fn div(self, other: f32) -> Versor {
+        Versor {
+            q: [
+                self.q[0] / other, 
+                self.q[1] / other, 
+                self.q[2] / other, 
+                self.q[3] / other,
+            ]
+        }
+    }
+}
+
+impl<'a> ops::Div<f32> for &'a Versor {
     type Output = Versor;
 
     fn div(self, other: f32) -> Versor {
@@ -749,7 +815,7 @@ impl ops::Mul<f32> for Versor {
     }
 }
 
-impl<'a> ops::Mul(&'a Versor) for Versor {
+impl<'a> ops::Mul<&'a Versor> for Versor {
     type Output = Versor;
 
     fn mul(self, other: &'a Versor) -> Self::Output {
@@ -762,11 +828,11 @@ impl<'a> ops::Mul(&'a Versor) for Versor {
             ]
         };
         // Renormalize in case of mangling.
-        normalize(result)
+        result.normalize()
     }
 }
 
-impl<'a> ops::Add(&'a Versor) for Versor {
+impl<'a> ops::Add<&'a Versor> for Versor {
     type Output = Versor;
 
     fn add(self, other: &'a Versor) -> Self::Output {
@@ -779,55 +845,8 @@ impl<'a> ops::Add(&'a Versor) for Versor {
             ]
         };
         // Renormalize in case of mangling.
-        normalize(result)
+        result.normalize()
     }
 }
 
-fn normalize(q: &Versor) -> Versor {
-    // norm(q) = q / magnitude (q)
-    // magnitude (q) = sqrt (w*w + x*x...)
-    // only compute sqrt if interior sum != 1.0
-    let sum = q.q[0] * q.q[0] + q.q[1] * q.q[1] + q.q[2] * q.q[2] + q.q[3] * q.q[3];
-    // NB: Floats have min 6 digits of precision.
-    let thresh = 0.0001;
-    if f32::abs(1.0 - sum) < thresh {
-        return q;
-    }
-
-    let norm = f32::sqrt(sum);
-    q / norm
-}
-
-fn dot(q: &Versor, r: &Versor) -> Versor {
-    q.q[0] * r.q[0] + q.q[1] * r.q[1] + q.q[2] * r.q[2] + q.q[3] * r.q[3]
-}
-
-fn quat_from_axis_rad(radians: f32, x: f32, y: f32, z: f32) -> Versor {
-    Versor {
-        q: [
-            f32::cos( radians / 2.0 ),
-            f32::sin( radians / 2.0 ) * x,
-            f32::sin( radians / 2.0 ) * y,
-            f32::sin( radians / 2.0 ) * z,
-        ]
-    }
-}
-
-fn quat_from_axis_deg(degrees: f32, x: f32, y: f32, z: f32) -> Versor {
-    quat_from_axis_rad(ONE_DEG_IN_RAD * degrees, x, y, z)
-}
-
-fn quat_to_mat4(q: &Versor ) -> Mat4 {
-    let w = q.q[0];
-    let x = q.q[1];
-    let y = q.q[2];
-    let z = q.q[3];
-    
-    mat4(
-        1.0 - 2.0 * y * y - 2.0 * z * z, 2.0 * x * y + 2.0 * w * z,       2.0 * x * z - 2.0 * w * y,       0.0, 
-        2.0 * x * y - 2.0 * w * z,       1.0 - 2.0 * x * x - 2.0 * z * z, 2.0 * y * z + 2.0 * w * x,       0.0, 
-        2.0 * x * z + 2.0 * w * y,       2.0 * y * z - 2.0 * w * x,       1.0 - 2.0 * x * x - 2.0 * y * y, 0.0, 
-        0.0,                             0.0,                             0.0,                             1.0
-    )
-}
 
