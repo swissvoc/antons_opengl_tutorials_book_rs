@@ -802,3 +802,32 @@ fn dot(q: &Versor, r: &Versor) -> Versor {
     q.q[0] * r.q[0] + q.q[1] * r.q[1] + q.q[2] * r.q[2] + q.q[3] * r.q[3]
 }
 
+fn quat_from_axis_rad(radians: f32, x: f32, y: f32, z: f32) -> Versor {
+    Versor {
+        q: [
+            f32::cos( radians / 2.0 ),
+            f32::sin( radians / 2.0 ) * x,
+            f32::sin( radians / 2.0 ) * y,
+            f32::sin( radians / 2.0 ) * z,
+        ]
+    }
+}
+
+fn quat_from_axis_deg(degrees: f32, x: f32, y: f32, z: f32) -> Versor {
+    quat_from_axis_rad(ONE_DEG_IN_RAD * degrees, x, y, z)
+}
+
+fn quat_to_mat4(q: &Versor ) -> Mat4 {
+    let w = q.q[0];
+    let x = q.q[1];
+    let y = q.q[2];
+    let z = q.q[3];
+    
+    mat4(
+        1.0 - 2.0 * y * y - 2.0 * z * z, 2.0 * x * y + 2.0 * w * z,       2.0 * x * z - 2.0 * w * y,       0.0, 
+        2.0 * x * y - 2.0 * w * z,       1.0 - 2.0 * x * x - 2.0 * z * z, 2.0 * y * z + 2.0 * w * x,       0.0, 
+        2.0 * x * z + 2.0 * w * y,       2.0 * y * z - 2.0 * w * x,       1.0 - 2.0 * x * x - 2.0 * y * y, 0.0, 
+        0.0,                             0.0,                             0.0,                             1.0
+    )
+}
+
