@@ -466,16 +466,17 @@ impl fmt::Display for Vec4 {
 ///
 #[derive(Copy, Clone, Debug)]
 pub struct Mat3 {
-    v: [f32; 9],
+    m: [f32; 9],
 }
 
 impl Mat3 {
-    pub fn new(m11: f32, m12: f32, m13: f32, 
-           m21: f32, m22: f32, m23: f32, 
-           m31: f32, m32: f32, m33: f32) -> Mat3 {
+    pub fn new(
+        m11: f32, m12: f32, m13: f32, 
+        m21: f32, m22: f32, m23: f32, 
+        m31: f32, m32: f32, m33: f32) -> Mat3 {
 
         Mat3 {
-            v: [
+            m: [
                 m11, m12, m13, // Column 1
                 m21, m22, m23, // Column 2
                 m31, m32, m33  // Column 3
@@ -490,15 +491,19 @@ impl Mat3 {
     pub fn identity() -> Mat3 {
         Mat3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     }
+
+    pub fn as_ptr(&self) -> *const f32 {
+        self.m.as_ptr()
+    }
 }
 
 impl fmt::Display for Mat3 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, 
             "\n[{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}]\n[{:.2}][{:.2}][{:.2}]", 
-            self.v[0], self.v[3], self.v[6],
-            self.v[1], self.v[4], self.v[7],
-            self.v[2], self.v[5], self.v[8],
+            self.m[0], self.m[3], self.m[6],
+            self.m[1], self.m[4], self.m[7],
+            self.m[2], self.m[5], self.m[8],
         )
     }
 }
@@ -542,6 +547,15 @@ impl Mat4 {
             0.0, 0.0, 0.0, 0.0, 
             0.0, 0.0, 0.0, 0.0, 
             0.0, 0.0, 0.0, 0.0
+        )
+    }
+
+    pub fn identity() -> Mat4 {
+        Mat4::new(
+            1.0, 0.0, 0.0, 0.0, 
+            0.0, 1.0, 0.0, 0.0, 
+            0.0, 0.0, 1.0, 0.0, 
+            0.0, 0.0, 0.0, 1.0
         )
     }
 
@@ -612,15 +626,6 @@ impl Mat4 {
         a * self
     }
 
-    pub fn identity() -> Mat4 {
-        Mat4::new(
-            1.0, 0.0, 0.0, 0.0, 
-            0.0, 1.0, 0.0, 0.0, 
-            0.0, 0.0, 1.0, 0.0, 
-            0.0, 0.0, 0.0, 1.0
-        )
-    }
-
     /// returns a scalar value with the determinant for a 4x4 matrix
     /// see
     /// http://www.euclideanspace.com/maths/algebra/matrix/functions/determinant/fourD/index.htm
@@ -684,14 +689,10 @@ impl ops::Mul<Vec4> for Mat4 {
     type Output = Vec4;
 
     fn mul(self, other: Vec4) -> Self::Output {
-        // x = m[0] * v_x + m[4] * 4v_y + m[8] * v_z + m[12] * v_w
-        let x = self.m[0]*other.v[0] + self.m[4] * other.v[1] + self.m[8]  * other.v[2] + self.m[12] * other.v[3];
-        // y = m[1]*v_x + m[5]*4v_y + m[9]*v_z + m[13]*v_w
-        let y = self.m[1]*other.v[0] + self.m[5] * other.v[1] + self.m[9]  * other.v[2] + self.m[13] * other.v[3];
-        // z = m[2]*v_x + m[6]*4v_y + m[10]*v_z + m[14]*v_w
-        let z = self.m[2]*other.v[0] + self.m[6] * other.v[1] + self.m[10] * other.v[2] + self.m[14] * other.v[3];
-        // w = m[3]*v_x + m[7]*4v_y + m[11]*v_z + m[15]*v_w
-        let w = self.m[3]*other.v[0] + self.m[7] * other.v[1] + self.m[11] * other.v[2] + self.m[15] * other.v[3];
+        let x = self.m[0] * other.v[0] + self.m[4] * other.v[1] + self.m[8]  * other.v[2] + self.m[12] * other.v[3];
+        let y = self.m[1] * other.v[0] + self.m[5] * other.v[1] + self.m[9]  * other.v[2] + self.m[13] * other.v[3];
+        let z = self.m[2] * other.v[0] + self.m[6] * other.v[1] + self.m[10] * other.v[2] + self.m[14] * other.v[3];
+        let w = self.m[3] * other.v[0] + self.m[7] * other.v[1] + self.m[11] * other.v[2] + self.m[15] * other.v[3];
         
         Vec4::new(x, y, z, w)
     }
@@ -702,6 +703,7 @@ impl<'a> ops::Mul<&'a Mat4> for Mat4 {
 
     fn mul(self, other: &'a Mat4) -> Mat4 {
         let mut mm = Mat4::zero();
+
         mm.m[0]  = self.m[0]*other.m[0]  + self.m[4]*other.m[1]  + self.m[8]*other.m[2]   + self.m[12]*other.m[3];
         mm.m[1]  = self.m[1]*other.m[0]  + self.m[5]*other.m[1]  + self.m[9]*other.m[2]   + self.m[13]*other.m[3];
         mm.m[2]  = self.m[2]*other.m[0]  + self.m[6]*other.m[1]  + self.m[10]*other.m[2]  + self.m[14]*other.m[3];
@@ -728,6 +730,7 @@ impl<'a, 'b> ops::Mul<&'a Mat4> for &'b Mat4 {
 
     fn mul(self, other: &'a Mat4) -> Mat4 {
         let mut mm = Mat4::zero();
+
         mm.m[0]  = self.m[0]*other.m[0]  + self.m[4]*other.m[1]  + self.m[8]*other.m[2]   + self.m[12]*other.m[3];
         mm.m[1]  = self.m[1]*other.m[0]  + self.m[5]*other.m[1]  + self.m[9]*other.m[2]   + self.m[13]*other.m[3];
         mm.m[2]  = self.m[2]*other.m[0]  + self.m[6]*other.m[1]  + self.m[10]*other.m[2]  + self.m[14]*other.m[3];
@@ -796,7 +799,7 @@ impl Versor {
         let y = self.q[2];
         let z = self.q[3];
     
-        mat4(
+        Mat4::new(
             1.0 - 2.0 * y * y - 2.0 * z * z, 2.0 * x * y + 2.0 * w * z,       2.0 * x * z - 2.0 * w * y,       0.0, 
             2.0 * x * y - 2.0 * w * z,       1.0 - 2.0 * x * x - 2.0 * z * z, 2.0 * y * z + 2.0 * w * x,       0.0, 
             2.0 * x * z + 2.0 * w * y,       2.0 * y * z - 2.0 * w * x,       1.0 - 2.0 * x * x - 2.0 * y * y, 0.0, 
