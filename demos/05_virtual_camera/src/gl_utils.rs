@@ -9,7 +9,7 @@ use std::ffi::CStr;
 use std::mem;
 use std::ptr;
 use std::fs::{File, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::fmt::Write as FWrite;
 use std::cell::Cell;
 use std::sync::mpsc::Receiver;
@@ -217,5 +217,181 @@ pub fn _update_fps_counter(glfw: &glfw::Glfw, window: &mut glfw::Window) {
 
         FRAME_COUNT += 1;
     }
+}
+
+pub fn gl_type_to_string(gl_type: GLenum) -> &'static str {
+    match gl_type {
+        gl::BOOL => "bool",
+        gl::INT => "int",
+        gl::FLOAT => "float",
+        gl::FLOAT_VEC2 => "vec2",
+        gl::FLOAT_VEC3 => "vec3",
+        gl::FLOAT_VEC4 => "vec4",
+        gl::FLOAT_MAT2 => "mat2",
+        gl::FLOAT_MAT3 => "mat3",
+        gl::FLOAT_MAT4 => "mat4",
+        gl::SAMPLER_2D => "sampler2D",
+        gl::SAMPLER_3D => "sampler3D",
+        gl::SAMPLER_CUBE => "samplerCube",
+        gl::SAMPLER_2D_SHADOW => "sampler2DShadow",
+        _ => "other"
+    }
+}
+
+/* print errors in shader compilation */
+pub fn _print_shader_info_log(shader_index: GLuint) {
+    let max_length = 2048;
+    let mut actual_length = 0;
+    let mut log = [0; 2048];
+    
+    unsafe {
+        gl::GetShaderInfoLog(shader_index, max_length, &mut actual_length, &mut log[0]);
+    }
+    
+    println!("Shader info log for GL index {}:", shader_index);
+    for i in 0..actual_length as usize {
+        print!("{}", log[i] as u8 as char);
+    }
+    println!();
+}
+
+/* print errors in shader linking */
+pub fn _print_programme_info_log(sp: GLuint) {
+    let max_length = 2048;
+    let mut actual_length = 0;
+    let mut log = [0 as i8; 2048];
+    
+    unsafe {
+        gl::GetProgramInfoLog(sp, max_length, &mut actual_length, &mut log[0]);
+    }
+    
+    println!("Program info log for GL index {}:", sp);
+    for i in 0..actual_length as usize {
+        print!("{}", log[i] as u8 as char);
+    }
+    println!();
+}
+
+/* validate shader */
+pub fn is_valid(sp: GLuint) -> bool {
+    let mut params = -1;
+    unsafe {
+        gl::ValidateProgram(sp);
+        gl::GetProgramiv(sp, gl::VALIDATE_STATUS, &mut params);
+    }
+
+    println!("Program {} GL_VALIDATE_STATUS = {}\n", sp, params);
+    if gl::TRUE as i32 != params {
+        _print_programme_info_log(sp);
+        return false;
+    }
+    return true;
+}
+
+/* print absolutely everything about a shader - only useful if you get really
+stuck wondering why a shader isn't working properly */
+pub fn print_all(sp: GLuint) {
+    let mut params = -1;
+
+    unsafe {
+        println!("--------------------\nshader programme {} info:", sp);
+        gl::GetProgramiv(sp, gl::LINK_STATUS, &mut params);
+        println!("GL_LINK_STATUS = {}", params);
+
+        gl::GetProgramiv(sp, gl::ATTACHED_SHADERS, &mut params);
+        println!("GL_ATTACHED_SHADERS = {}", params);
+
+        gl::GetProgramiv(sp, gl::ACTIVE_ATTRIBUTES, &mut params);
+        println!("GL_ACTIVE_ATTRIBUTES = {}", params);
+    }
+
+    for i in 0..params {
+        let mut name = [0; 64];
+        let max_length = 64;
+        let mut actual_length = 0;
+        let mut size = 0;
+        let mut gl_type: GLenum = 0;
+        unsafe {
+            gl::GetActiveAttrib(sp, i as GLuint, max_length, &mut actual_length, &mut size, &mut gl_type, &mut name[0]);
+        }
+        if size > 1 {
+            for j in 0..size {
+                let mut long_name = vec![];
+                //write!(long_name, "{}[{}]", name, j);
+                let location = unsafe { gl::GetAttribLocation(sp, long_name.as_ptr() as *const i8) };
+                println!(
+                    "  {}) type:{} name:{} location:{}", 
+                    i, gl_type_to_string(gl_type), long_name.iter().map(|ch| *ch as u8 as char).collect::<String>(), location
+                );
+            }
+        } else {
+            let location = unsafe { gl::GetAttribLocation(sp, &mut name[0]) };
+            println!(
+                "  {}) type:{} name:{} location:{}",
+                i, gl_type_to_string(gl_type), name.iter().map(|ch| *ch as u8 as char).collect::<String>(), location
+            );
+        }
+    }
+    
+    unsafe {
+        gl::GetProgramiv(sp, gl::ACTIVE_UNIFORMS, &mut params);
+    }
+    println!("GL_ACTIVE_UNIFORMS = {}", params);
+    for i in 0..params {
+        let mut name = [0; 64];
+        let max_length = 64;
+        let mut actual_length = 0;
+        let mut size = 0;
+        let mut gl_type: GLenum = 0;
+        unsafe {
+            gl::GetActiveUniform(sp, i as u32, max_length, &mut actual_length, &mut size, &mut gl_type, &mut name[0]);
+        }
+        if size > 1 {
+            for j in 0..size {
+                let long_name = [0; 64];
+
+                //write!(long_name, "{}[{}]", name, j);
+                let location = unsafe { gl::GetUniformLocation(sp, long_name.as_ptr()) };
+                println!(
+                    "  {}) type:{} name:{} location:{}",
+                    i, gl_type_to_string(gl_type), long_name.iter().map(|ch| *ch as u8 as char).collect::<String>(), location
+                );
+            }
+        } else {
+            let location = unsafe { gl::GetUniformLocation(sp, &name[0]) };
+            println!(
+                "  {}) type:{} name:{} location:{}", 
+                i, gl_type_to_string(gl_type), name.iter().map(|ch| *ch as u8 as char).collect::<String>(), location
+            );
+        }
+    }
+
+    _print_programme_info_log(sp);
+}
+
+pub fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usize) -> bool {
+    let file = File::open(file_name);
+    if file.is_err() {
+        gl_log_err(&format!("ERROR: opening file for reading: {}\n", file_name));
+        return false;
+    }
+
+    let mut file = file.unwrap();
+
+    let bytes_read = file.read(shader_str);
+    if bytes_read.is_err() {
+        gl_log_err(&format!("ERROR: reading shader file {}\n", file_name));
+        return false;
+    }
+
+    let bytes_read = bytes_read.unwrap();
+    if bytes_read >= (max_len - 1) {
+        gl_log_err(&format!("WARNING: file {} too big - truncated.\n", file_name));
+    }
+
+    // append \0 to end of file string.
+    shader_str[bytes_read] = 0;
+
+    return true;
 }
 
