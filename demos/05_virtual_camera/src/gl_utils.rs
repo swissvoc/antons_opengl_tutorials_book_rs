@@ -17,8 +17,6 @@ use std::sync::mpsc::Receiver;
 
 const GL_LOG_FILE: &str = "gl.log";
 
-pub static mut PREVIOUS_SECONDS: f64 = 0.;
-
 // Keep track of window size for things like the viewport and the mouse cursor
 const G_GL_WIDTH_DEFAULT: u32 = 640;
 const G_GL_HEIGHT_DEFAULT: u32 = 480;
@@ -26,6 +24,8 @@ const G_GL_HEIGHT_DEFAULT: u32 = 480;
 pub static mut G_GL_WIDTH: u32 = 640;
 pub static mut G_GL_HEIGHT: u32 = 480;
 
+static mut PREVIOUS_SECONDS: f64 = 0.0;
+static mut FRAME_COUNT: usize = 0;
 
 #[inline]
 pub fn glubyte_ptr_to_string(cstr: *const GLubyte) -> String {
@@ -203,19 +203,15 @@ pub fn start_gl() -> Result<(glfw::Glfw, glfw::Window, Receiver<(f64, glfw::Wind
 
 // We will use this function to update the window title with a frame rate.
 pub fn _update_fps_counter(glfw: &glfw::Glfw, window: &mut glfw::Window) {
-    let mut tmp: String = String::new();
-
-    static mut FRAME_COUNT: usize = 0;
-
-    let current_seconds = glfw.get_time();
-    unsafe {
+    unsafe {        
+        let current_seconds = glfw.get_time();
         let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
         if elapsed_seconds > 0.25 {
             PREVIOUS_SECONDS = current_seconds;
-
             let fps = FRAME_COUNT as f64 / elapsed_seconds;
-            write!(&mut tmp, "OpenGL @ fps: {:.2}", fps).unwrap();
-            window.set_title(&tmp);
+            let mut title: String = String::new();
+            write!(&mut title, "OpenGL @ FPS: {:.2}", fps).unwrap();
+            window.set_title(&title);
             FRAME_COUNT = 0;
         }
 

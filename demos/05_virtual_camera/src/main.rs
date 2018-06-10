@@ -23,6 +23,7 @@ use math::{Mat4};
 
 const GL_LOG_FILE: &str = "gl.log";
 
+static mut PREVIOUS_SECONDS: f64 = 0.;
 
 fn GL_type_to_string(gl_type: GLenum) -> &'static str {
     match gl_type {
@@ -340,6 +341,8 @@ fn main() {
             let current_seconds = glfw.get_time();
             let elapsed_seconds = (current_seconds - PREVIOUS_SECONDS) as f32;
             PREVIOUS_SECONDS = current_seconds;
+
+            _update_fps_counter(&glfw, &mut window);
 
             // Wipe the drawing surface clear.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
