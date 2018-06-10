@@ -26,7 +26,7 @@ use math::{Mat4};
 
 
 const GL_LOG_FILE: &str = "gl.log";
-const MESH_FILE: &str = "sphere.obj";
+const MESH_FILE: &str = "src/sphere.obj";
 const VERTEX_SHADER_FILE: &str = "test_vs.glsl";
 const FRAGMENT_SHADER_FILE: &str = "test_fs.glsl";
 const NUM_SPHERES: usize = 4;

@@ -8,9 +8,6 @@ pub fn load_obj_file(
     points: &mut [f32], tex_coords: &mut[f32],
     normals: &mut [f32], point_count: &mut usize) -> bool {
 
-    let mut unsorted_vp_array = vec![];
-    let mut unsorted_vt_array = vec![];
-    let mut unsorted_vn_array = vec![];
     let mut current_unsorted_vp = 0;
     let mut current_unsorted_vt = 0;
     let mut current_unsorted_vn = 0;
@@ -25,12 +22,13 @@ pub fn load_obj_file(
     let file = file.unwrap();
     let reader = BufReader::new(file);
 
-    // first count points in file so we know how much mem to allocate
+    // First count points in file so we know how much mem to allocate.
     *point_count = 0;
     let mut unsorted_vp_count = 0;
     let mut unsorted_vt_count = 0;
     let mut unsorted_vn_count = 0;
     let mut face_count = 0;
+
     for line in reader.lines().map(|st| st.unwrap()) {
         let bytes = line.as_bytes();
         if bytes[0] == b'v' {
@@ -51,15 +49,19 @@ pub fn load_obj_file(
         unsorted_vp_count, unsorted_vt_count, unsorted_vn_count
     );
 
+    let mut unsorted_vp_array = vec![0.0; 3 * unsorted_vp_count];
+    let mut unsorted_vt_array = vec![0.0; 2 * unsorted_vt_count];
+    let mut unsorted_vn_array = vec![0.0; 3 * unsorted_vn_count];
+
     println!("Allocated {} bytes for mesh", 3 * face_count * 8 * mem::size_of::<f32>());
 
     let file = File::open(file_name).unwrap();
     let reader = BufReader::new(file);
     for line in reader.lines().map(|st| st.unwrap()) {
-        // vertex
+        // Vertex
         let bytes = line.as_bytes();
         if bytes[0] == b'v' {
-            // vertex point
+            // Vertex point.
             if bytes[1] == b' ' {
                 let (x, y, z) = scan_fmt!(&line, "v {} {} {}", f32, f32, f32);
                 unsorted_vp_array[current_unsorted_vp * 3]     = x.unwrap();
@@ -67,14 +69,14 @@ pub fn load_obj_file(
                 unsorted_vp_array[current_unsorted_vp * 3 + 2] = z.unwrap();
                 current_unsorted_vp += 1;
 
-            // vertex texture coordinate
+            // Vertex texture coordinate.
             } else if bytes[1] == b't' {
                 let (s, t) = scan_fmt!(&line, "vt {} {}", f32, f32);
                 unsorted_vt_array[current_unsorted_vt * 2]     = s.unwrap();
                 unsorted_vt_array[current_unsorted_vt * 2 + 1] = t.unwrap();
                 current_unsorted_vt += 1;
 
-            // vertex normal
+            // Vertex normal.
             } else if bytes[1] == b'n' {
                 let (x, y, z) = scan_fmt!(&line, "vn {} {} {}", f32, f32, f32);
                 unsorted_vn_array[current_unsorted_vn * 3]     = x.unwrap();
@@ -83,20 +85,21 @@ pub fn load_obj_file(
                 current_unsorted_vn += 1;
             }
 
-        // faces
+        // Faces
         } else if bytes[0] == b'f' {
             // work out if using quads instead of triangles and print a warning
-            let mut slashCount = 0;
+            let mut slash_count = 0;
             for i in 0..bytes.len() {
                 if bytes[i] == b'/' {
-                    slashCount += 1;
+                    slash_count += 1;
                 }
             }
-            if slashCount != 6 {
+            if slash_count != 6 {
                 eprintln!(
                     "ERROR: file contains quads or does not match v vp/vt/vn layout - 
                      make sure exported mesh is triangulated and contains vertex points, 
-                     texture coordinates, and normals");
+                     texture coordinates, and normals"
+                );
                 
                 return false;
             }
