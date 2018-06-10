@@ -741,8 +741,10 @@ pub fn mat4(
         m41: f32, m42: f32, m43: f32, m44: f32) -> Mat4 {
 
     Mat4::new(
-        m11, m12, m13, m14, m21, m22, m23, m24,
-        m31, m32, m33, m34, m41, m42, m43, m44
+        m11, m12, m13, m14, 
+        m21, m22, m23, m24, 
+        m31, m32, m33, m34, 
+        m41, m42, m43, m44
     )
 }
 
@@ -866,6 +868,52 @@ impl Versor {
             2.0 * x * z + 2.0 * w * y,       2.0 * y * z - 2.0 * w * x,       1.0 - 2.0 * x * x - 2.0 * y * y, 0.0, 
             0.0,                             0.0,                             0.0,                             1.0
         )
+    }
+
+    pub fn slerp(q: &mut Versor, r: &Versor, t: f32) -> Versor {
+        // angle between q0-q1
+        let mut cos_half_theta = q.dot(r);
+        // as found here
+        // http://stackoverflow.com/questions/2886606/flipping-issue-when-interpolating-rotations-using-quaternions
+        // if dot product is negative then one quaternion should be negated, to make
+        // it take the short way around, rather than the long way
+        // yeah! and furthermore Susan, I had to recalculate the d.p. after this
+        if cos_half_theta < 0.0 {
+            q.q[0] *= -1.0;
+            q.q[1] *= -1.0;
+            q.q[2] *= -1.0;
+            q.q[3] *= -1.0;
+
+            cos_half_theta = q.dot(r);
+        }
+        // if qa=qb or qa=-qb then theta = 0 and we can return qa
+        if f32::abs(cos_half_theta) >= 1.0 {
+            return *q;
+        }
+
+        // Calculate temporary values
+        let sin_half_theta = f32::sqrt(1.0 - cos_half_theta * cos_half_theta);
+        // if theta = 180 degrees then result is not fully defined
+        // we could rotate around any axis normal to qa or qb
+        let mut result = Versor { q: [1.0, 0.0, 0.0, 0.0] };
+        if f32::abs(sin_half_theta) < 0.001 {
+            result.q[0] = (1.0 - t) * q.q[0] + t * r.q[0];
+            result.q[1] = (1.0 - t) * q.q[1] + t * r.q[1];
+            result.q[2] = (1.0 - t) * q.q[2] + t * r.q[2];
+            result.q[3] = (1.0 - t) * q.q[3] + t * r.q[3];
+
+            return result;
+        }
+        let half_theta = f32::acos(cos_half_theta);
+        let a = f32::sin((1.0 - t) * half_theta) / sin_half_theta;
+        let b = f32::sin(t * half_theta) / sin_half_theta;
+        
+        result.q[0] = q.q[0] * a + r.q[0] * b;
+        result.q[1] = q.q[1] * a + r.q[1] * b;
+        result.q[2] = q.q[2] * a + r.q[2] * b;
+        result.q[3] = q.q[3] * a + r.q[3] * b;
+
+        return result;
     }
 }
 
