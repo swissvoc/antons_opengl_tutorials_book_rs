@@ -1,12 +1,11 @@
 use glfw;
-use glfw::{Action, Context, Key};
+use glfw::Context;
 use gl;
 use gl::types::{GLubyte, GLuint, GLchar, GLint, GLenum};
 use chrono::prelude::Utc;
 
 use std::string::String;
 use std::ffi::CStr;
-use std::mem;
 use std::ptr;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write, BufReader};
