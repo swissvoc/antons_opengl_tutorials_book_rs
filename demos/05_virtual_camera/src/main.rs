@@ -3,7 +3,7 @@ extern crate glfw;
 extern crate chrono;
 
 mod gl_utils;
-mod gl_math;
+mod graphics_math;
 
 
 use glfw::{Action, Context, Key};
@@ -16,7 +16,9 @@ use std::fs::{File};
 use std::io::{Read};
 use std::process;
 use gl_utils::*;
-use gl_math::*;
+
+use graphics_math as math;
+use math::{Mat4};
 
 
 const GL_LOG_FILE: &str = "gl.log";
@@ -212,7 +214,7 @@ fn main() {
     ];
 
     restart_gl_log();
-    let (mut glfw, mut window, events) = start_gl().unwrap();
+    let (mut glfw, mut window, mut events) = start_gl().unwrap();
     unsafe {
         let mut points_vbo: GLuint = 0;
         gl::GenBuffers(1, &mut points_vbo);
@@ -291,15 +293,16 @@ fn main() {
         let result = is_valid(shader_programme);
         assert!(result);
 
-        let mut speed = 1.0 * 1e4;
         let mut last_position = 0.0;
-        // Camera parameters.
+
+        // Camera movement parameters.
         let cam_speed = 1.0 * 2e4;       // 1 unit per second.
         let cam_yaw_speed = 10.0 * 2e4;  // 10 degrees per second.
         let mut cam_pos = default_camera_pos();
         let mut cam_yaw = 0.0;
+
         // Camera translation and rotation.
-        let t_mat = Mat4::identity().translate(&vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2])));
+        let t_mat = Mat4::identity().translate(&math::vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2])));
         let r_mat = Mat4::identity().rotate_y_deg(-cam_yaw);
         let view_mat = &r_mat * &t_mat;
 
@@ -349,13 +352,9 @@ fn main() {
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
             // Update other events like input handling.
             glfw.poll_events();
-            
-            /*-----------------------------move camera
-         
-            * here-------------------------------*/
+
             // Control keys
             let mut cam_moved = false;
-
             match window.get_key(Key::A) {
                 Action::Press | Action::Repeat => {
                     cam_pos[0] -= cam_speed * elapsed_seconds;
@@ -422,7 +421,7 @@ fn main() {
 
             /* update view matrix */
             if cam_moved {
-                let t_mat = Mat4::identity().translate(&vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2]))); // cam translation
+                let t_mat = Mat4::identity().translate(&math::vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2]))); // cam translation
                 let r_mat = Mat4::identity().rotate_y_deg(-cam_yaw);
                 let view_mat = &r_mat * &t_mat;
                 gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
