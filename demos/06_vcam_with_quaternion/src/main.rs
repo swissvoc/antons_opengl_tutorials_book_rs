@@ -2,8 +2,13 @@ extern crate gl;
 extern crate glfw;
 extern crate chrono;
 
+#[macro_use] 
+extern crate scan_fmt;
+
+
 mod gl_utils;
 mod graphics_math;
+mod obj_parser;
 
 
 use glfw::{Action, Context, Key};
@@ -107,38 +112,37 @@ fn main() {
     let mut vn = vec![]; // array of vertex normals
     let mut vt = vec![]; // array of texture coordinates
     let mut point_count = 0;
-    load_obj_file(MESH_FILE, &mut vp, &mut vt, &mut vn, &mut point_count);
+    obj_parser::load_obj_file(MESH_FILE, &mut vp, &mut vt, &mut vn, &mut point_count);
 
     let mut vao = 0;
-    gl::GenVertexArrays(1, &mut vao);
-    gl::BindVertexArray(vao);
+    unsafe {
+        gl::GenVertexArrays(1, &mut vao);
+        gl::BindVertexArray(vao);
 
-    let mut points_vbo = 0;
-    if !vp.is_empty() {
-        gl::GenBuffers(1, &mut points_vbo);
-        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER, (3 * point_count * mem::size_of::<GLfloat>()) as GLsizeiptr, 
-            vp.as_ptr() as *const GLvoid, gl::STATIC_DRAW
-        );
-        gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
-        gl::EnableVertexAttribArray(0);
+        let mut points_vbo = 0;
+        if !vp.is_empty() {
+            gl::GenBuffers(1, &mut points_vbo);
+            gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
+            gl::BufferData(
+                gl::ARRAY_BUFFER, (3 * point_count * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+                vp.as_ptr() as *const GLvoid, gl::STATIC_DRAW
+            );
+            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
+            gl::EnableVertexAttribArray(0);
+        }
     }
-
     /*-------------------------------CREATE
      * SHADERS-------------------------------*/
-    let shader_programme =
-        create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
-    let model_mat_location = gl::GetUniformLocation( shader_programme, "model".as_ptr() as *const i8);
-    let view_mat_location = gl::GetUniformLocation( shader_programme, "view".as_ptr() as *const i8);
-    let proj_mat_location = gl::GetUniformLocation( shader_programme, "proj".as_ptr() as *const i8);
-
+    let shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
+    let model_mat_location = unsafe { gl::GetUniformLocation( shader_programme, "model".as_ptr() as *const i8) };
+    let view_mat_location  = unsafe { gl::GetUniformLocation( shader_programme, "view".as_ptr() as *const i8) };
+    let proj_mat_location  = unsafe { gl::GetUniformLocation( shader_programme, "proj".as_ptr() as *const i8) };
     /*-------------------------------CREATE CAMERA--------------------------------*/
     // input variables
-    let near = 0.1;                                                                       // clipping plane
-    let far = 100.0;                                                                      // clipping plane
-    let fovy = 67.0;                                                                      // 67 degrees
-    let aspect = G_GL_WIDTH as f32 / G_GL_HEIGHT as f32; // aspect ratio
+    let near = 0.1;                                                 // Near clipping plane
+    let far = 100.0;                                                // Far clipping plane
+    let fovy = 67.0;                                                // 67 degrees
+    let aspect = unsafe { G_GL_WIDTH as f32 / G_GL_HEIGHT as f32 }; // aspect ratio
     let proj_mat = Mat4::perspective(fovy, aspect, near, far);
 
     let cam_speed = 5.0;           // 1 unit per second
@@ -147,27 +151,29 @@ fn main() {
     let mut cam_heading = 0.0;     // y-rotation in degrees
     let mat_T = Mat4::translate(&Mat4::identity(), &math::vec3((-cam_pos.v[0], -cam_pos.v[1], -cam_pos.v[2])));
     // Rotation matrix from my maths library. just holds 16 floats
-    let mat_R = Mat4::zero();
+    let mut mat_R = Mat4::zero();
     // make a quaternion representing negated initial camera orientation
     let mut quaternion = [0.0; 4];
     create_versor(&mut quaternion, -cam_heading, 0.0, 1.0, 0.0);
     // convert the quaternion to a rotation matrix (just an array of 16 floats)
     quat_to_mat4(&mut mat_R.m, &quaternion);
     // combine the inverse rotation and transformation to make a view matrix
-    let mut view_mat = &mat_R * &mat_T;
+    let view_mat = &mat_R * &mat_T;
     // keep track of some useful vectors that can be used for keyboard movement
-    let fwd = math::vec4((0.0, 0.0, -1.0, 0.0));
-    let rgt = math::vec4((1.0, 0.0, 0.0, 0.0));
-    let up  = math::vec4((0.0, 1.0, 0.0, 0.0));
+    let mut fwd = math::vec4((0.0, 0.0, -1.0, 0.0));
+    let mut rgt = math::vec4((1.0, 0.0, 0.0, 0.0));
+    let mut up  = math::vec4((0.0, 1.0, 0.0, 0.0));
 
     /*---------------------------SET RENDERING
      * DEFAULTS---------------------------*/
-    gl::UseProgram(shader_programme);
-    gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
-    gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
-    
+    unsafe {
+        gl::UseProgram(shader_programme);
+        gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
+        gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
+    }
+
     // a world position for each sphere in the scene
-    let mut sphere_pos_wor = [
+    let sphere_pos_wor = [
         math::vec3((-2.0, 0.0,  0.0)),  math::vec3((2.0, 0.0,  0.0)),
         math::vec3((-2.0, 0.0, -2.0)), math::vec3((1.5, 1.0, -1.0))
     ];    
@@ -177,209 +183,217 @@ fn main() {
         model_mats.push(Mat4::translate(&Mat4::identity(), &sphere_pos_wor[i]));
     }
 
-    gl::Enable(gl::DEPTH_TEST); // enable depth-testing
-    gl::DepthFunc(gl::LESS);      // depth-testing interprets a smaller value as "closer"
-    gl::Enable(gl::CULL_FACE);   // cull face
-    gl::CullFace(gl::BACK);       // cull back face
-    gl::FrontFace(gl::CCW);     // set counter-clock-wise vertex order to mean the front
-    gl::ClearColor(0.2, 0.2, 0.2, 1.0); // grey background to help spot mistakes
-    gl::Viewport( 0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32);
+    unsafe {
+        gl::Enable(gl::DEPTH_TEST);   // enable depth-testing
+        gl::DepthFunc(gl::LESS);      // depth-testing interprets a smaller value as "closer"
+        gl::Enable(gl::CULL_FACE);    // cull face
+        gl::CullFace(gl::BACK);       // cull back face
+        gl::FrontFace(gl::CCW);       // set counter-clock-wise vertex order to mean the front
+        gl::ClearColor(0.2, 0.2, 0.2, 1.0); // grey background to help spot mistakes
+        gl::Viewport( 0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32);
 
-    /*-------------------------------RENDERING
-     * LOOP-------------------------------*/
-    while !g_window.should_close() {
-        // Update timers.
-        //PREVIOUS_SECONDS = glfw.get_time();
-        let current_seconds = glfw.get_time();
-        let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
-        PREVIOUS_SECONDS = current_seconds;
-        _update_fps_counter(&glfw, &mut g_window);
+        /*-------------------------------RENDERING
+        * LOOP-------------------------------*/
+        while !g_window.should_close() {
+            // Update timers.
+            //PREVIOUS_SECONDS = glfw.get_time();
+            let current_seconds = glfw.get_time();
+            let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
+            PREVIOUS_SECONDS = current_seconds;
+            _update_fps_counter(&glfw, &mut g_window);
 
-        // wipe the drawing surface clear
-        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            // wipe the drawing surface clear
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-        gl::UseProgram(shader_programme);
-        for i in 0..NUM_SPHERES {
-            gl::UniformMatrix4fv(model_mat_location, 1, gl::FALSE, model_mats[i].as_ptr());
-            gl::DrawArrays(gl::TRIANGLES, 0, point_count as i32);
-        }
-
-        // Update other events like input handling.
-        glfw.poll_events();
-
-        // Control keys.
-        let mut cam_moved = false;
-        let mut move_to = math::vec3((0.0, 0.0, 0.0));
-        let mut cam_yaw: f32 = 0.0; // y-rotation in degrees
-        let mut cam_pitch: f32 = 0.0;
-        let mut cam_roll: f32 = 0.0;
-        match g_window.get_key(Key::A) {
-            Action::Press | Action::Repeat => {
-                move_to.v[0] -= (cam_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
+            gl::UseProgram(shader_programme);
+            for i in 0..NUM_SPHERES {
+                gl::UniformMatrix4fv(model_mat_location, 1, gl::FALSE, model_mats[i].as_ptr());
+                gl::DrawArrays(gl::TRIANGLES, 0, point_count as i32);
             }
-            _ => {}
-        }
-        match g_window.get_key(Key::D) {
-            Action::Press | Action::Repeat => {
-                move_to.v[0] += (cam_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-            }
-            _ => {}
-        }
-        match g_window.get_key(Key::Q) {
-            Action::Press | Action::Repeat => {
-                move_to.v[1] += (cam_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-            }
-            _ => {}
-        }
-        match g_window.get_key(Key::E) {
-            Action::Press | Action::Repeat => {
-                move_to.v[1] -= (cam_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-            }
-            _ => {}
-        }
-        match g_window.get_key(Key::W) {
-            Action::Press | Action::Repeat => {
-                move_to.v[2] -= (cam_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-            }
-            _ => {}
-        }
-        match g_window.get_key(Key::S) {
-            Action::Press | Action::Repeat => {
-                move_to.v[2] += (cam_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-            }
-            _ => {}
-        }
-        match g_window.get_key(Key::Left) {
-            Action::Press | Action::Repeat => {
-                cam_yaw += (cam_heading_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
 
-                // create a quaternion representing change in heading (the yaw)
-                let mut q_yaw = [0.0; 4];
-                create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
-                // add yaw rotation to the camera's current orientation
-                mult_quat_quat(&mut quaternion, &q_yaw, &quaternion);
+            // Update other events like input handling.
+            glfw.poll_events();
 
-                // recalc axes to suit new orientation
-                quat_to_mat4(&mut mat_R.m, &quaternion);
-                fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+            // Control keys.
+            let mut cam_moved = false;
+            let mut move_to = math::vec3((0.0, 0.0, 0.0));
+            let mut cam_yaw: f32 = 0.0; // y-rotation in degrees
+            let mut cam_pitch: f32 = 0.0;
+            let mut cam_roll: f32 = 0.0;
+            match g_window.get_key(Key::A) {
+                Action::Press | Action::Repeat => {
+                    move_to.v[0] -= (cam_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        match g_window.get_key(Key::Right) {
-            Action::Press | Action::Repeat => {
-                cam_yaw -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-                let mut q_yaw = [0.0; 4];
-                create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
-                mult_quat_quat(&mut quaternion, &q_yaw, &quaternion);
-
-                // Recalculate axes to suit new orientation.
-                quat_to_mat4(&mut mat_R.m, &quaternion);
-                fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+            match g_window.get_key(Key::D) {
+                Action::Press | Action::Repeat => {
+                    move_to.v[0] += (cam_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        match g_window.get_key(Key::Up) {
-            Action::Press | Action::Repeat => {
-                cam_pitch += (cam_heading_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-                let mut q_pitch = [0.0; 4];
-                create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
-                mult_quat_quat(&mut quaternion, &q_pitch, &quaternion);
-
-                // Recalculate axes to suit new orientation.
-                quat_to_mat4(&mut mat_R.m, &quaternion);
-                fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+            match g_window.get_key(Key::Q) {
+                Action::Press | Action::Repeat => {
+                    move_to.v[1] += (cam_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        match g_window.get_key(Key::Down) {
-            Action::Press | Action::Repeat => {
-                cam_pitch -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-                let mut q_pitch = [0.0; 4];
-                create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
-                mult_quat_quat(&mut quaternion, &q_pitch, &quaternion);
-
-                // recalc axes to suit new orientation
-                quat_to_mat4(&mut mat_R.m, &quaternion);
-                fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+            match g_window.get_key(Key::E) {
+                Action::Press | Action::Repeat => {
+                    move_to.v[1] -= (cam_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        match g_window.get_key(Key::Z) {
-            Action::Press | Action::Repeat => {
-                cam_roll -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-                let mut q_roll = [0.0; 4];
-                create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2] );
-                mult_quat_quat(&mut quaternion, &q_roll, &quaternion);
-
-                // Recalculate axes to suit new orientation.
-                quat_to_mat4(&mut mat_R.m, &quaternion);
-                fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+            match g_window.get_key(Key::W) {
+                Action::Press | Action::Repeat => {
+                    move_to.v[2] -= (cam_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        match g_window.get_key(Key::C) {
-            Action::Press | Action::Repeat => {
-                cam_roll += (cam_heading_speed as f32) * (elapsed_seconds as f32);
-                cam_moved = true;
-                let mut q_roll = [0.0; 4];
-                create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
-                mult_quat_quat(&mut quaternion, &q_roll, &quaternion);
-
-                // recalc axes to suit new orientation
-                quat_to_mat4(&mut mat_R.m, &quaternion);
-                fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+            match g_window.get_key(Key::S) {
+                Action::Press | Action::Repeat => {
+                    move_to.v[2] += (cam_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                }
+                _ => {}
             }
-            _ => {}
-        }
+            match g_window.get_key(Key::Left) {
+                Action::Press | Action::Repeat => {
+                    cam_yaw += (cam_heading_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
 
-        // Update view matrix
-        if cam_moved {
-            quat_to_mat4(&mut mat_R.m, &quaternion);
+                    // create a quaternion representing change in heading (the yaw)
+                    let mut q_yaw = [0.0; 4];
+                    create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
+                    // add yaw rotation to the camera's current orientation
+                    let quaternion_copy = quaternion.clone();
+                    mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
 
-            // checking for fp errors
-            //  printf ("dot fwd . up %f\n", dot (fwd, up));
-            //  printf ("dot rgt . up %f\n", dot (rgt, up));
-            //  printf ("dot fwd . rgt\n %f", dot (fwd, rgt));
+                    // recalc axes to suit new orientation
+                    quat_to_mat4(&mut mat_R.m, &quaternion);
+                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                }
+                _ => {}
+            }
+            match g_window.get_key(Key::Right) {
+                Action::Press | Action::Repeat => {
+                    cam_yaw -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                    let mut q_yaw = [0.0; 4];
+                    create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
+                    let quaternion_copy = quaternion.clone();
+                    mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
 
-            cam_pos = cam_pos + math::vec3(fwd) * -move_to.v[2];
-            cam_pos = cam_pos + math::vec3(up) * move_to.v[1];
-            cam_pos = cam_pos + math::vec3(rgt) * move_to.v[0];
-            let mat_T = Mat4::translate(&Mat4::identity(), &math::vec3(cam_pos));
+                    // Recalculate axes to suit new orientation.
+                    quat_to_mat4(&mut mat_R.m, &quaternion);
+                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                }
+                _ => {}
+            }
+            match g_window.get_key(Key::Up) {
+                Action::Press | Action::Repeat => {
+                    cam_pitch += (cam_heading_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                    let mut q_pitch = [0.0; 4];
+                    create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
+                    let quaternion_copy = quaternion.clone();
+                    mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
 
-            //view_mat = inverse( R ) * inverse( T );
-            gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
-        }
+                    // Recalculate axes to suit new orientation.
+                    quat_to_mat4(&mut mat_R.m, &quaternion);
+                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                }
+                _ => {}
+            }
+            match g_window.get_key(Key::Down) {
+                Action::Press | Action::Repeat => {
+                    cam_pitch -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                    let mut q_pitch = [0.0; 4];
+                    create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
+                    let quaternion_copy = quaternion.clone();
+                    mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
         
-        match g_window.get_key(Key::Escape) {
-            Action::Press | Action::Repeat => {
-                g_window.set_should_close(true);
+                    // recalc axes to suit new orientation
+                    quat_to_mat4(&mut mat_R.m, &quaternion);
+                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                }
+                _ => {}
             }
-            _ => {}
-        }
+            match g_window.get_key(Key::Z) {
+                Action::Press | Action::Repeat => {
+                    cam_roll -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                    let mut q_roll = [0.0; 4];
+                    create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
+                    let quaternion_copy = quaternion.clone();
+                    mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
 
-        g_window.swap_buffers();
+                    // Recalculate axes to suit new orientation.
+                    quat_to_mat4(&mut mat_R.m, &quaternion);
+                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                }
+                _ => {}
+            }
+            match g_window.get_key(Key::C) {
+                Action::Press | Action::Repeat => {
+                    cam_roll += (cam_heading_speed as f32) * (elapsed_seconds as f32);
+                    cam_moved = true;
+                    let mut q_roll = [0.0; 4];
+                    create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
+                    let quaternion_copy = quaternion.clone();
+                    mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
+
+                    // recalc axes to suit new orientation
+                    quat_to_mat4(&mut mat_R.m, &quaternion);
+                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                }
+                _ => {}
+            }
+
+            // Update view matrix
+            if cam_moved {
+                quat_to_mat4(&mut mat_R.m, &quaternion);
+
+                // checking for fp errors
+                //  printf ("dot fwd . up %f\n", dot (fwd, up));
+                //  printf ("dot rgt . up %f\n", dot (rgt, up));
+                //  printf ("dot fwd . rgt\n %f", dot (fwd, rgt));
+
+                cam_pos = cam_pos + math::vec3(fwd) * -move_to.v[2];
+                cam_pos = cam_pos + math::vec3(up) * move_to.v[1];
+                cam_pos = cam_pos + math::vec3(rgt) * move_to.v[0];
+                let mat_T = Mat4::translate(&Mat4::identity(), &math::vec3(cam_pos));
+
+                //view_mat = inverse(mat_R) * inverse(mat_T);
+                gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
+            }
+        
+            match g_window.get_key(Key::Escape) {
+                Action::Press | Action::Repeat => {
+                    g_window.set_should_close(true);
+                }
+                _ => {}
+            }
+
+            g_window.swap_buffers();
+        }
     }
 }
