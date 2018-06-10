@@ -38,7 +38,7 @@ impl fmt::Display for Vec2 {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Vec3 {
-    v: [f32; 3],
+    pub v: [f32; 3],
 }
 
 impl Vec3 {
@@ -112,6 +112,20 @@ impl<'a> From<(&'a Vec2, f32)> for Vec3 {
     #[inline]
     fn from((v, z): (&'a Vec2, f32)) -> Vec3 {
         Vec3::new(v.v[0], v.v[1], z)
+    }
+}
+
+impl<'a> From<Vec4> for Vec3 {
+    #[inline]
+    fn from(v: Vec4) -> Vec3 {
+        Vec3::new(v.v[0], v.v[1], v.v[2])
+    }
+}
+
+impl<'a> From<&'a Vec4> for Vec3 {
+    #[inline]
+    fn from(v: &'a Vec4) -> Vec3 {
+        Vec3::new(v.v[0], v.v[1], v.v[2])
     }
 }
 
@@ -463,7 +477,7 @@ impl<'a> ops::DivAssign<f32> for &'a mut Vec3 {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Vec4 {
-    v: [f32; 4],
+    pub v: [f32; 4],
 }
 
 impl Vec4 {
