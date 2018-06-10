@@ -104,6 +104,13 @@ impl From<(Vec2, f32)> for Vec3 {
     }
 }
 
+impl<'a> From<(&'a Vec2, f32)> for Vec3 {
+    #[inline]
+    fn from((v, z): (&'a Vec2, f32)) -> Vec3 {
+        Vec3::new(v.v[0], v.v[1], z)
+    }
+}
+
 impl fmt::Display for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{:.2}, {:.2}, {:.2}]", self.v[0], self.v[1], self.v[2])
@@ -477,6 +484,20 @@ impl From<(f32, f32, f32, f32)> for Vec4 {
     }
 }
 
+impl From<(Vec2, f32, f32)> for Vec4 {
+    #[inline]
+    fn from((v, z, w): (Vec2, f32, f32)) -> Vec4 {
+        Vec4::new(v.v[0], v.v[1], z, w)
+    }
+}
+
+impl<'a> From<(&'a Vec2, f32, f32)> for Vec4 {
+    #[inline]
+    fn from((v, z, w): (&'a Vec2, f32, f32)) -> Vec4 {
+        Vec4::new(v.v[0], v.v[1], z, w)
+    }
+}
+
 impl From<(Vec3, f32)> for Vec4 {
     #[inline]
     fn from((v, w): (Vec3, f32)) -> Vec4 {
@@ -484,10 +505,10 @@ impl From<(Vec3, f32)> for Vec4 {
     }
 }
 
-impl From<(Vec2, f32, f32)> for Vec4 {
+impl<'a> From<(&'a Vec3, f32)> for Vec4 {
     #[inline]
-    fn from((v, z, w): (Vec2, f32, f32)) -> Vec4 {
-        Vec4::new(v.v[0], v.v[1], z, w)
+    fn from((v, w): (&'a Vec3, f32)) -> Vec4 {
+        Vec4::new(v.v[0], v.v[1], v.v[2], w)
     }
 }
 
