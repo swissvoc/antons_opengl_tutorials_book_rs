@@ -717,6 +717,24 @@ impl Mat4 {
         self.m[0]  * self.m[5]  * self.m[10] * self.m[15]
     }
 
+    // returns a perspective function mimicking the opengl projection style.
+    pub fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
+        let fov_rad = fovy * ONE_DEG_IN_RAD;
+        let range = f32::tan(fov_rad / 2.0) * near;
+        let sx = (2.0 * near) / (range * aspect + range * aspect);
+        let sy = near / range;
+        let sz = -(far + near) / (far - near);
+        let pz = -(2.0 * far * near) / (far - near);
+        let mut m = Mat4::zero(); // make sure bottom-right corner is zero
+        m.m[0] = sx;
+        m.m[5] = sy;
+        m.m[10] = sz;
+        m.m[14] = pz;
+        m.m[11] = -1.0;
+        
+        m
+    }
+
     pub fn as_ptr(&self) -> *const f32 {
         self.m.as_ptr()
     }

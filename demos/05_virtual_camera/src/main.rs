@@ -303,11 +303,13 @@ fn main() {
         let R = Mat4::identity().rotate_y_deg(-cam_yaw);
         let view_mat = &R * &T;
 
+
         // Set up project matrix. We will put this into a math function later.
         let near = 0.1;
         let far = 100.0;
         let fov = 67.0 * ONE_DEG_IN_RAD; // Convert 67 degrees to radians.
         let aspect = G_GL_WIDTH as f32 / G_GL_HEIGHT as f32;
+    
         let range = f32::tan(fov * 0.5) * near;
         let Sx = (2.0 * near) / (range * aspect + range * aspect);
         let Sy = near / range;
