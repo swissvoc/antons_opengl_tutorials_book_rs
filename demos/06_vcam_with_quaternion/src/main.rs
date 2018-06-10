@@ -158,7 +158,7 @@ fn main() {
     // convert the quaternion to a rotation matrix (just an array of 16 floats)
     quat_to_mat4(&mut mat_R.m, &quaternion);
     // combine the inverse rotation and transformation to make a view matrix
-    let view_mat = &mat_R * &mat_T;
+    let mut view_mat = &mat_R * &mat_T;
     // keep track of some useful vectors that can be used for keyboard movement
     let mut fwd = math::vec4((0.0, 0.0, -1.0, 0.0));
     let mut rgt = math::vec4((1.0, 0.0, 0.0, 0.0));
@@ -382,7 +382,7 @@ fn main() {
                 cam_pos = cam_pos + math::vec3(rgt) * move_to.v[0];
                 let mat_T = Mat4::translate(&Mat4::identity(), &math::vec3(cam_pos));
 
-                //view_mat = inverse(mat_R) * inverse(mat_T);
+                view_mat = &mat_R.inverse() * &mat_T.inverse();
                 gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
             }
         

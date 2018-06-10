@@ -731,6 +731,73 @@ impl Mat4 {
         self.m[0]  * self.m[5]  * self.m[10] * self.m[15]
     }
 
+    /* returns a 16-element array that is the inverse of a 16-element array (4x4
+    matrix). see
+    http://www.euclideanspace.com/maths/algebra/matrix/functions/inverse/fourD/index.htm
+    */
+    pub fn inverse(&self) -> Mat4 {
+        let det = self.determinant();
+        /* there is no inverse if determinant is zero (not likely unless scale is
+        broken) */
+        if det == 0.0 {
+            eprintln!("WARNING. Matrix has zero determinant. It cannot be inverted.");
+            
+            return *self;
+        }
+
+        let inv_det = 1.0 / det;
+
+        return mat4(
+            inv_det * ( self.m[9] * self.m[14] * self.m[7] - self.m[13] * self.m[10] * self.m[7] +
+                                    self.m[13] * self.m[6] * self.m[11] - self.m[5] * self.m[14] * self.m[11] -
+                                    self.m[9] * self.m[6] * self.m[15] + self.m[5] * self.m[10] * self.m[15] ),
+            inv_det * ( self.m[13] * self.m[10] * self.m[3] - self.m[9] * self.m[14] * self.m[3] -
+                                    self.m[13] * self.m[2] * self.m[11] + self.m[1] * self.m[14] * self.m[11] +
+                                    self.m[9] * self.m[2] * self.m[15] - self.m[1] * self.m[10] * self.m[15] ),
+            inv_det * ( self.m[5] * self.m[14] * self.m[3] - self.m[13] * self.m[6] * self.m[3] +
+                                    self.m[13] * self.m[2] * self.m[7] - self.m[1] * self.m[14] * self.m[7] -
+                                    self.m[5] * self.m[2] * self.m[15] + self.m[1] * self.m[6] * self.m[15] ),
+            inv_det * ( self.m[9] * self.m[6] * self.m[3] - self.m[5] * self.m[10] * self.m[3] -
+                                    self.m[9] * self.m[2] * self.m[7] + self.m[1] * self.m[10] * self.m[7] +
+                                    self.m[5] * self.m[2] * self.m[11] - self.m[1] * self.m[6] * self.m[11] ),
+            inv_det * ( self.m[12] * self.m[10] * self.m[7] - self.m[8] * self.m[14] * self.m[7] -
+                                    self.m[12] * self.m[6] * self.m[11] + self.m[4] * self.m[14] * self.m[11] +
+                                    self.m[8] * self.m[6] * self.m[15] - self.m[4] * self.m[10] * self.m[15] ),
+            inv_det * ( self.m[8] * self.m[14] * self.m[3] - self.m[12] * self.m[10] * self.m[3] +
+                                    self.m[12] * self.m[2] * self.m[11] - self.m[0] * self.m[14] * self.m[11] -
+                                    self.m[8] * self.m[2] * self.m[15] + self.m[0] * self.m[10] * self.m[15] ),
+            inv_det * ( self.m[12] * self.m[6] * self.m[3] - self.m[4] * self.m[14] * self.m[3] -
+                                    self.m[12] * self.m[2] * self.m[7] + self.m[0] * self.m[14] * self.m[7] +
+                                    self.m[4] * self.m[2] * self.m[15] - self.m[0] * self.m[6] * self.m[15] ),
+            inv_det * ( self.m[4] * self.m[10] * self.m[3] - self.m[8] * self.m[6] * self.m[3] +
+                                    self.m[8] * self.m[2] * self.m[7] - self.m[0] * self.m[10] * self.m[7] -
+                                    self.m[4] * self.m[2] * self.m[11] + self.m[0] * self.m[6] * self.m[11] ),
+            inv_det * ( self.m[8] * self.m[13] * self.m[7] - self.m[12] * self.m[9] * self.m[7] +
+                                    self.m[12] * self.m[5] * self.m[11] - self.m[4] * self.m[13] * self.m[11] -
+                                    self.m[8] * self.m[5] * self.m[15] + self.m[4] * self.m[9] * self.m[15] ),
+            inv_det * ( self.m[12] * self.m[9] * self.m[3] - self.m[8] * self.m[13] * self.m[3] -
+                                    self.m[12] * self.m[1] * self.m[11] + self.m[0] * self.m[13] * self.m[11] +
+                                    self.m[8] * self.m[1] * self.m[15] - self.m[0] * self.m[9] * self.m[15] ),
+            inv_det * ( self.m[4] * self.m[13] * self.m[3] - self.m[12] * self.m[5] * self.m[3] +
+                                    self.m[12] * self.m[1] * self.m[7] - self.m[0] * self.m[13] * self.m[7] -
+                                    self.m[4] * self.m[1] * self.m[15] + self.m[0] * self.m[5] * self.m[15] ),
+            inv_det * ( self.m[8] * self.m[5] * self.m[3] - self.m[4] * self.m[9] * self.m[3] -
+                                    self.m[8] * self.m[1] * self.m[7] + self.m[0] * self.m[9] * self.m[7] +
+                                    self.m[4] * self.m[1] * self.m[11] - self.m[0] * self.m[5] * self.m[11] ),
+            inv_det * ( self.m[12] * self.m[9] * self.m[6] - self.m[8] * self.m[13] * self.m[6] -
+                                    self.m[12] * self.m[5] * self.m[10] + self.m[4] * self.m[13] * self.m[10] +
+                                    self.m[8] * self.m[5] * self.m[14] - self.m[4] * self.m[9] * self.m[14] ),
+            inv_det * ( self.m[8] * self.m[13] * self.m[2] - self.m[12] * self.m[9] * self.m[2] +
+                                    self.m[12] * self.m[1] * self.m[10] - self.m[0] * self.m[13] * self.m[10] -
+                                    self.m[8] * self.m[1] * self.m[14] + self.m[0] * self.m[9] * self.m[14] ),
+            inv_det * ( self.m[12] * self.m[5] * self.m[2] - self.m[4] * self.m[13] * self.m[2] -
+                                    self.m[12] * self.m[1] * self.m[6] + self.m[0] * self.m[13] * self.m[6] +
+                                    self.m[4] * self.m[1] * self.m[14] - self.m[0] * self.m[5] * self.m[14] ),
+            inv_det * ( self.m[4] * self.m[9] * self.m[2] - self.m[8] * self.m[5] * self.m[2] +
+                                    self.m[8] * self.m[1] * self.m[6] - self.m[0] * self.m[9] * self.m[6] -
+                                    self.m[4] * self.m[1] * self.m[10] + self.m[0] * self.m[5] * self.m[10] ) );
+    }
+
     // returns a perspective function mimicking the opengl projection style.
     pub fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
         let fov_rad = fovy * ONE_DEG_IN_RAD;
