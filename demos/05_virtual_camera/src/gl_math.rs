@@ -1,5 +1,6 @@
 use std::fmt;
 use std::ops;
+use std::convert::From;
 
 
 // Constants used to convert degrees into radians.
@@ -76,17 +77,31 @@ impl Vec3 {
     }
 
     pub fn get_squared_dist(&self, to: &Vec3) -> f32 {
-        let x = ( to.v[0] - self.v[0] ) * ( to.v[0] - self.v[0] );
-        let y = ( to.v[1] - self.v[1] ) * ( to.v[1] - self.v[1] );
-        let z = ( to.v[2] - self.v[2] ) * ( to.v[2] - self.v[2] );
+        let x = (to.v[0] - self.v[0]) * (to.v[0] - self.v[0]);
+        let y = (to.v[1] - self.v[1]) * (to.v[1] - self.v[1]);
+        let z = (to.v[2] - self.v[2]) * (to.v[2] - self.v[2]);
     
         x + y + z
     }
 }
 
 #[inline]
-pub fn vec3(x: f32, y: f32, z: f32) -> Vec3 {
-    Vec3::new(x, y, z)
+pub fn vec3<T: Into<Vec3>>(v: T) -> Vec3 {
+    v.into()
+}
+
+impl From<(f32, f32, f32)> for Vec3 {
+    #[inline]
+    fn from((x, y, z): (f32, f32, f32)) -> Vec3 {
+        Vec3::new(x, y, z)
+    }
+}
+
+impl From<(Vec2, f32)> for Vec3 {
+    #[inline]
+    fn from((v, z): (Vec2, f32)) -> Vec3 {
+        Vec3::new(v.v[0], v.v[1], z)
+    }
 }
 
 impl fmt::Display for Vec3 {
@@ -451,8 +466,29 @@ impl Vec4 {
 }
 
 #[inline]
-pub fn vec4(x: f32, y: f32, z: f32, w: f32) -> Vec4 {
-    Vec4::new(x, y, z, w)
+pub fn vec4<T: Into<Vec4>>(v: T) -> Vec4 {
+    v.into()
+}
+
+impl From<(f32, f32, f32, f32)> for Vec4 {
+    #[inline]
+    fn from((x, y, z, w): (f32, f32, f32, f32)) -> Vec4 {
+        Vec4::new(x, y, z, w)
+    }
+}
+
+impl From<(Vec3, f32)> for Vec4 {
+    #[inline]
+    fn from((v, w): (Vec3, f32)) -> Vec4 {
+        Vec4::new(v.v[0], v.v[1], v.v[2], w)
+    }
+}
+
+impl From<(Vec2, f32, f32)> for Vec4 {
+    #[inline]
+    fn from((v, z, w): (Vec2, f32, f32)) -> Vec4 {
+        Vec4::new(v.v[0], v.v[1], z, w)
+    }
 }
 
 impl fmt::Display for Vec4 {

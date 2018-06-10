@@ -299,7 +299,7 @@ fn main() {
         let mut cam_pos = default_camera_pos();
         let mut cam_yaw = 0.0;
         // Camera translation and rotation.
-        let T = Mat4::identity().translate(&vec3(-cam_pos[0], -cam_pos[1], -cam_pos[2]));
+        let T = Mat4::identity().translate(&vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2])));
         let R = Mat4::identity().rotate_y_deg(-cam_yaw);
         let view_mat = &R * &T;
 
@@ -433,7 +433,7 @@ fn main() {
 
             /* update view matrix */
             if cam_moved {
-                let T = Mat4::identity().translate(&vec3(-cam_pos[0], -cam_pos[1], -cam_pos[2])); // cam translation
+                let T = Mat4::identity().translate(&vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2]))); // cam translation
                 let R = Mat4::identity().rotate_y_deg(-cam_yaw);
                 let view_mat = &R * &T;
                 gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
