@@ -1,7 +1,7 @@
 use glfw;
 use glfw::{Action, Context, Key};
 use gl;
-use gl::types::{GLubyte, GLfloat, GLuint, GLsizeiptr, GLchar, GLvoid, GLint, GLenum};
+use gl::types::{GLubyte, GLuint, GLchar, GLint, GLenum};
 use chrono::prelude::Utc;
 
 use std::string::String;
@@ -9,13 +9,14 @@ use std::ffi::CStr;
 use std::mem;
 use std::ptr;
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{Read, Write, BufReader};
 use std::fmt::Write as FWrite;
 use std::cell::Cell;
 use std::sync::mpsc::Receiver;
 
 
 const GL_LOG_FILE: &str = "gl.log";
+const MAX_SHADER_LENGTH: usize = 262144;
 
 // Keep track of window size for things like the viewport and the mouse cursor
 const G_GL_WIDTH_DEFAULT: u32 = 640;
@@ -238,8 +239,66 @@ pub fn gl_type_to_string(gl_type: GLenum) -> &'static str {
     }
 }
 
+pub fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usize) -> bool {
+    shader_str[0] = 0;
+    let file = File::open(file_name);
+    if file.is_err() {
+        gl_log_err(&format!("ERROR: opening file for reading: {}\n", file_name));
+        return false;
+    }
+
+    let file = file.unwrap();
+    let mut reader = BufReader::new(file);
+
+    let bytes_read = reader.read(shader_str);
+    if bytes_read.is_err() {
+        gl_log_err(&format!("ERROR: reading shader file {}\n", file_name));
+        return false;
+    }
+
+    let bytes_read = bytes_read.unwrap();
+    if bytes_read >= (max_len - 1) {
+        gl_log_err(&format!("WARNING: file {} too big - truncated.\n", file_name));
+    }
+
+    // append \0 to end of file string.
+    shader_str[bytes_read] = 0;
+
+    return true;
+}
+
+fn create_shader(file_name: &str, shader: &mut GLuint, gl_type: GLenum) -> bool {
+    gl_log(&format!("Creating shader from {}...\n", file_name));
+
+    let mut shader_string = vec![0; MAX_SHADER_LENGTH];
+    parse_file_into_str(file_name, &mut shader_string, MAX_SHADER_LENGTH);
+
+    *shader = unsafe { gl::CreateShader(gl_type) };
+    let p = shader_string.as_ptr() as *const GLchar;
+    
+    unsafe {
+        gl::ShaderSource(*shader, 1, &p, ptr::null());
+        gl::CompileShader(*shader);
+    }
+    // Check for compile errors.
+    let mut params = -1;
+    unsafe {
+        gl::GetShaderiv(*shader, gl::COMPILE_STATUS, &mut params);
+    }
+
+    if params != gl::TRUE as i32 {
+        gl_log_err(&format!("ERROR: GL shader index {} did not compile\n", *shader));
+        print_shader_info_log(*shader);
+        
+        return false;
+    }
+    gl_log(&format!("Shader compiled with index {}\n", *shader));
+    
+    return true;
+}
+
 /* print errors in shader compilation */
-pub fn _print_shader_info_log(shader_index: GLuint) {
+pub fn print_shader_info_log(shader_index: GLuint) {
     let max_length = 2048;
     let mut actual_length = 0;
     let mut log = [0; 2048];
@@ -256,7 +315,7 @@ pub fn _print_shader_info_log(shader_index: GLuint) {
 }
 
 /* print errors in shader linking */
-pub fn _print_programme_info_log(sp: GLuint) {
+pub fn print_programme_info_log(sp: GLuint) {
     let max_length = 2048;
     let mut actual_length = 0;
     let mut log = [0 as i8; 2048];
@@ -273,20 +332,66 @@ pub fn _print_programme_info_log(sp: GLuint) {
 }
 
 /* validate shader */
-pub fn is_valid(sp: GLuint) -> bool {
+pub fn is_programme_valid(sp: GLuint) -> bool {
     let mut params = -1;
     unsafe {
         gl::ValidateProgram(sp);
         gl::GetProgramiv(sp, gl::VALIDATE_STATUS, &mut params);
     }
 
-    println!("Program {} GL_VALIDATE_STATUS = {}\n", sp, params);
     if gl::TRUE as i32 != params {
-        _print_programme_info_log(sp);
+        gl_log_err(&format!("Program {} GL_VALIDATE_STATUS = GL_FALSE\n", sp));
+        print_programme_info_log(sp);
         return false;
     }
+
+    gl_log(&format!("Program {} GL_VALIDATE_STATUS = {}\n", sp, params));
+    
     return true;
 }
+
+pub fn create_programme(vertex_shader: GLuint, fragment_shader: GLuint, programme: &mut GLuint) -> bool {
+    unsafe {
+        *programme = gl::CreateProgram();
+        gl_log(&format!(
+            "Created programme {}. attaching shaders {} and {}...\n", 
+            programme, vertex_shader, fragment_shader)
+        );
+        gl::AttachShader(*programme, vertex_shader);
+        gl::AttachShader(*programme, fragment_shader);
+
+        // Link the shader programme. If binding input attributes do that before linking.
+        gl::LinkProgram( *programme );
+        let mut params = -1;
+        gl::GetProgramiv(*programme, gl::LINK_STATUS, &mut params);
+        if params != gl::TRUE as i32 {
+            gl_log_err(&format!(
+                "ERROR: could not link shader programme GL index {}\n", *programme)
+            );
+            print_programme_info_log(*programme);
+        
+            return false;
+        }
+        is_programme_valid( *programme );
+        // Delete shaders here to free memory
+        gl::DeleteShader(vertex_shader);
+        gl::DeleteShader(fragment_shader);
+        return true;
+    }
+}
+
+pub fn create_programme_from_files(vert_file_name: &str, frag_file_name: &str) -> GLuint {
+    let mut vertex_shader: GLuint = 0;
+    let mut fragment_shader: GLuint = 0;
+    let mut programme: GLuint = 0;
+    
+    create_shader(vert_file_name, &mut vertex_shader, gl::VERTEX_SHADER);
+    create_shader(frag_file_name, &mut fragment_shader, gl::FRAGMENT_SHADER);
+    create_programme(vertex_shader, fragment_shader, &mut programme);
+    
+    programme
+}
+
 
 /* print absolutely everything about a shader - only useful if you get really
 stuck wondering why a shader isn't working properly */
@@ -366,32 +471,6 @@ pub fn print_all(sp: GLuint) {
         }
     }
 
-    _print_programme_info_log(sp);
-}
-
-pub fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usize) -> bool {
-    let file = File::open(file_name);
-    if file.is_err() {
-        gl_log_err(&format!("ERROR: opening file for reading: {}\n", file_name));
-        return false;
-    }
-
-    let mut file = file.unwrap();
-
-    let bytes_read = file.read(shader_str);
-    if bytes_read.is_err() {
-        gl_log_err(&format!("ERROR: reading shader file {}\n", file_name));
-        return false;
-    }
-
-    let bytes_read = bytes_read.unwrap();
-    if bytes_read >= (max_len - 1) {
-        gl_log_err(&format!("WARNING: file {} too big - truncated.\n", file_name));
-    }
-
-    // append \0 to end of file string.
-    shader_str[bytes_read] = 0;
-
-    return true;
+    print_programme_info_log(sp);
 }
 
