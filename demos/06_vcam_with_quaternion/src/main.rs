@@ -109,10 +109,14 @@ fn main() {
     /*------------------------------CREATE
      * GEOMETRY-------------------------------*/
     let mut vp = vec![]; // array of vertex points
-    let mut vn = vec![]; // array of vertex normals
-    let mut vt = vec![]; // array of texture coordinates
+    let mut vt = vec![]; // array of vertex normals
+    let mut vn = vec![]; // array of texture coordinates
     let mut point_count = 0;
     obj_parser::load_obj_file(MESH_FILE, &mut vp, &mut vt, &mut vn, &mut point_count);
+
+    println!("vp = {:?}", vp);
+    println!("vt = {:?}", vt);
+    println!("vn = {:?}", vn);
 
     let mut vao = 0;
     unsafe {
