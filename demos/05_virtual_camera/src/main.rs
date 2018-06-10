@@ -294,14 +294,14 @@ fn main() {
         let mut speed = 1.0 * 1e4;
         let mut last_position = 0.0;
         // Camera parameters.
-        let mut cam_speed = 1.0 * 2e4;       // 1 unit per second.
-        let mut cam_yaw_speed = 10.0 * 2e4;  // 10 degrees per second.
+        let cam_speed = 1.0 * 2e4;       // 1 unit per second.
+        let cam_yaw_speed = 10.0 * 2e4;  // 10 degrees per second.
         let mut cam_pos = default_camera_pos();
         let mut cam_yaw = 0.0;
         // Camera translation and rotation.
-        let T = Mat4::identity().translate(&vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2])));
-        let R = Mat4::identity().rotate_y_deg(-cam_yaw);
-        let view_mat = &R * &T;
+        let t_mat = Mat4::identity().translate(&vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2])));
+        let r_mat = Mat4::identity().rotate_y_deg(-cam_yaw);
+        let view_mat = &r_mat * &t_mat;
 
         // Set up project matrix. We will put this into a math function later.
         let near = 0.1;
@@ -422,9 +422,9 @@ fn main() {
 
             /* update view matrix */
             if cam_moved {
-                let T = Mat4::identity().translate(&vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2]))); // cam translation
-                let R = Mat4::identity().rotate_y_deg(-cam_yaw);
-                let view_mat = &R * &T;
+                let t_mat = Mat4::identity().translate(&vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2]))); // cam translation
+                let r_mat = Mat4::identity().rotate_y_deg(-cam_yaw);
+                let view_mat = &r_mat * &t_mat;
                 gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
             }
 
