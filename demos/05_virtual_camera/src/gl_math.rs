@@ -19,6 +19,10 @@ impl Vec2 {
     pub fn new(x: f32, y: f32) -> Vec2 {
         Vec2 { v: [x, y] }
     }
+
+    pub fn zero() -> Vec2 { 
+        Vec2 { v: [0.0, 0.0] }
+    }
 }
 
 #[inline]
