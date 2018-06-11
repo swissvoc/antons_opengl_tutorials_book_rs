@@ -4,6 +4,11 @@ use std::io::{Seek, SeekFrom, BufRead, BufReader};
 use std::mem;
 
 
+///
+/// An `ObjMesh` is a model space representation of a 3D geometric figure.
+/// You typically generate one from parsing a Wavefront *.obj file into
+/// an `ObjMesh`.
+///
 #[derive(Clone, Debug, PartialEq)]
 pub struct ObjMesh {
     pub point_count: usize,
@@ -13,6 +18,9 @@ pub struct ObjMesh {
 }
 
 impl ObjMesh {
+    ///
+    /// Generate a new mesh object.
+    ///
     fn new(points: Vec<f32>, tex_coords: Vec<f32>, normals: Vec<f32>) -> ObjMesh {
         ObjMesh {
             point_count: points.len() / 3,
@@ -22,16 +30,31 @@ impl ObjMesh {
         }
     }
 
+    ///
+    /// Present the points map as an array slice. This function can be used
+    /// to present the internal array buffer to OpenGL or another Graphics
+    /// system for rendering.
+    ///
     #[inline]
     fn points(&self) -> &[f32] {
         &self.points
     }
 
+    ///
+    /// Present the texture map as an array slice. This function can be used
+    /// to present the internal array buffer to OpenGL or another Graphics
+    /// system for rendering.
+    ///
     #[inline]
     fn tex_coords(&self) -> &[f32] {
         &self.tex_coords
     }
 
+    ///
+    /// Present the normal vector map as an array slice. This function can be used
+    /// to present the internal array buffer to OpenGL or another Graphics
+    /// system for rendering.
+    ///
     #[inline]
     fn normals(&self) -> &[f32] {
         &self.normals
