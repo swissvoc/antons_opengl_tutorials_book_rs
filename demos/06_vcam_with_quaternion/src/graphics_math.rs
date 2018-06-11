@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops;
 use std::convert::From;
+use std::convert;
 
 
 // Constants used to convert degrees into radians.
@@ -595,12 +596,24 @@ fn mat3(m11: f32, m12: f32, m13: f32,
     Mat3::new(m11, m12, m13, m21, m22, m23, m31, m32, m33)
 }
 
+impl convert::AsRef<[f32; 9]> for Mat3 {
+    fn as_ref(&self) -> &[f32; 9] {
+        &self.m
+    }
+}
+
+impl convert::AsMut<[f32; 9]> for Mat3 {
+    fn as_mut(&mut self) -> &mut [f32; 9] {
+        &mut self.m
+    }
+}
+
 ///
 /// The `Mat4` type represents 4x4 matrices in column-major order.
 ///
 #[derive(Copy, Clone, Debug)]
 pub struct Mat4 {
-    pub m: [f32; 16],
+    m: [f32; 16],
 }
 
 impl Mat4 {
@@ -855,6 +868,18 @@ pub fn mat4(
     )
 }
 
+impl convert::AsRef<[f32; 16]> for Mat4 {
+    fn as_ref(&self) -> &[f32; 16] {
+        &self.m
+    }
+}
+
+impl convert::AsMut<[f32; 16]> for Mat4 {
+    fn as_mut(&mut self) -> &mut [f32; 16] {
+        &mut self.m
+    }
+}
+
 impl ops::Mul<Vec4> for Mat4 {
     type Output = Vec4;
 
@@ -922,6 +947,32 @@ impl<'a, 'b> ops::Mul<&'a Mat4> for &'b Mat4 {
     }
 }
 
+impl ops::Mul<Mat4> for Mat4 {
+    type Output = Mat4;
+
+    fn mul(self, other: Mat4) -> Mat4 {
+        let mut mm = Mat4::zero();
+
+        mm.m[0]  = self.m[0]*other.m[0]  + self.m[4]*other.m[1]  + self.m[8]*other.m[2]   + self.m[12]*other.m[3];
+        mm.m[1]  = self.m[1]*other.m[0]  + self.m[5]*other.m[1]  + self.m[9]*other.m[2]   + self.m[13]*other.m[3];
+        mm.m[2]  = self.m[2]*other.m[0]  + self.m[6]*other.m[1]  + self.m[10]*other.m[2]  + self.m[14]*other.m[3];
+        mm.m[3]  = self.m[3]*other.m[0]  + self.m[7]*other.m[1]  + self.m[11]*other.m[2]  + self.m[15]*other.m[3];
+        mm.m[4]  = self.m[0]*other.m[4]  + self.m[4]*other.m[5]  + self.m[8]*other.m[6]   + self.m[12]*other.m[7];
+        mm.m[5]  = self.m[1]*other.m[4]  + self.m[5]*other.m[5]  + self.m[9]*other.m[6]   + self.m[13]*other.m[7];
+        mm.m[6]  = self.m[2]*other.m[4]  + self.m[6]*other.m[5]  + self.m[10]*other.m[6]  + self.m[14]*other.m[7];
+        mm.m[7]  = self.m[3]*other.m[4]  + self.m[7]*other.m[5]  + self.m[11]*other.m[6]  + self.m[15]*other.m[7];
+        mm.m[8]  = self.m[0]*other.m[8]  + self.m[4]*other.m[9]  + self.m[8]*other.m[10]  + self.m[12]*other.m[11];
+        mm.m[9]  = self.m[1]*other.m[8]  + self.m[5]*other.m[9]  + self.m[9]*other.m[10]  + self.m[13]*other.m[11];
+        mm.m[10] = self.m[2]*other.m[8]  + self.m[6]*other.m[9]  + self.m[10]*other.m[10] + self.m[14]*other.m[11];
+        mm.m[11] = self.m[3]*other.m[8]  + self.m[7]*other.m[9]  + self.m[11]*other.m[10] + self.m[15]*other.m[11];
+        mm.m[12] = self.m[0]*other.m[12] + self.m[4]*other.m[13] + self.m[8]*other.m[14]  + self.m[12]*other.m[15];
+        mm.m[13] = self.m[1]*other.m[12] + self.m[5]*other.m[13] + self.m[9]*other.m[14]  + self.m[13]*other.m[15];
+        mm.m[14] = self.m[2]*other.m[12] + self.m[6]*other.m[13] + self.m[10]*other.m[14] + self.m[14]*other.m[15];
+        mm.m[15] = self.m[3]*other.m[12] + self.m[7]*other.m[13] + self.m[11]*other.m[14] + self.m[15]*other.m[15];
+
+        mm
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 struct Versor {
