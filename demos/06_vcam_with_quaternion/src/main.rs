@@ -12,9 +12,8 @@ mod obj_parser;
 
 
 use glfw::{Action, Context, Key};
-use gl::types::{GLfloat, GLuint, GLsizeiptr, GLchar, GLvoid, GLint, GLenum};
+use gl::types::{GLfloat, GLsizeiptr, GLvoid};
 
-use std::string::String;
 use std::mem;
 use std::ptr;
 
@@ -32,7 +31,7 @@ const NUM_SPHERES: usize = 4;
 
 static mut PREVIOUS_SECONDS: f64 = 0.0;
 
-/* create a unit quaternion q from an angle in degrees a, and an axis x,y,z */
+// Create a unit quaternion q from an angle in degrees a, and an axis x,y,z.
 fn create_versor(q: &mut [f32; 4], degrees: f32, x: f32, y: f32, z: f32) {
     let rad = math::ONE_DEG_IN_RAD * degrees;
     q[0] = f32::cos(rad / 2.0);
@@ -41,7 +40,7 @@ fn create_versor(q: &mut [f32; 4], degrees: f32, x: f32, y: f32, z: f32) {
     q[3] = f32::sin(rad / 2.0) * z;
 }
 
-/* convert a unit quaternion q to a 4x4 matrix m */
+// Convert a unit quaternion q to a 4x4 matrix m.
 fn quat_to_mat4(m: &mut [f32; 16], q: &[f32; 4]) {
     let w = q[0];
     let x = q[1];
@@ -65,7 +64,7 @@ fn quat_to_mat4(m: &mut [f32; 16], q: &[f32; 4]) {
     m[15] = 1.0;
 }
 
-/* normalise a quaternion in case it got a bit mangled */
+// Normalize a quaternion in case it got a bit mangled.
 fn normalize_quat(q: &mut [f32; 4]) {
     // norm(q) = q / magnitude (q)
     // magnitude (q) = sqrt (w*w + x*x...)
@@ -84,7 +83,7 @@ fn normalize_quat(q: &mut [f32; 4]) {
     q[3] = q[3] / norm;
 }
 
-/* multiply quaternions to get another one. result=R*S */
+// Multiply quaternions to get another one. result= R*S.
 fn mult_quat_quat(result: &mut [f32; 4], r: &[f32; 4], s: &[f32; 4]) {
     let w = s[0] * r[0] - s[1] * r[1] - s[2] * r[2] - s[3] * r[3];
     let x = s[0] * r[1] + s[1] * r[0] - s[2] * r[3] + s[3] * r[2];
@@ -103,7 +102,7 @@ fn main() {
     // Start OpenGL.
     restart_gl_log();
     // Start GL context and O/S window using the GLFW helper library
-    let (mut glfw, mut g_window, mut g_events) = start_gl().unwrap();
+    let (mut glfw, mut g_window, _g_events) = start_gl().unwrap();
 
     /*------------------------------CREATE
      * GEOMETRY-------------------------------*/
