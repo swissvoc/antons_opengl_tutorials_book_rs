@@ -10,6 +10,7 @@ pub const M_PI: f32 = 3.14159265358979323846264338327950288;
 pub const TAU: f32 = 2.0 * M_PI;
 pub const ONE_DEG_IN_RAD: f32 = (2.0 * M_PI) / 360.0; // == 0.017444444
 pub const ONE_RAD_IN_DEG: f32 = 360.0 / (2.0 * M_PI); // == 57.2957795
+pub const EPSILON: f32 = 0.000001; 
 
 
 #[derive(Copy, Clone, Debug)]
@@ -613,7 +614,7 @@ impl convert::AsMut<[f32; 9]> for Mat3 {
 ///
 /// The `Mat4` type represents 4x4 matrices in column-major order.
 ///
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct Mat4 {
     m: [f32; 16],
 }
@@ -975,6 +976,7 @@ impl ops::Mul<Mat4> for Mat4 {
         mm
     }
 }
+
 
 #[derive(Copy, Clone, Debug)]
 struct Versor {
@@ -1364,6 +1366,30 @@ mod met4_tests {
 
             assert_eq!(a_mat_times_identity, identity_times_a_mat);
             assert_eq!(b_mat_times_identity, identity_times_b_mat);
+        }
+    }
+
+    #[test]
+    fn test_mat_times_mat_inverse_equals_identity() {
+        for test in test_cases().iter() {
+            let a_mat_inverse = test.a_mat.inverse();
+            let b_mat_inverse = test.b_mat.inverse();
+            let identity = Mat4::identity();
+
+            assert_eq!(a_mat_inverse * test.a_mat, identity);
+            assert_eq!(b_mat_inverse * test.b_mat, identity);
+        }
+    }
+
+    #[test]
+    fn test_mat_inverse_times_mat_equals_identity() {
+        for test in test_cases().iter() {
+            let a_mat_inverse = test.a_mat.inverse();
+            let b_mat_inverse = test.b_mat.inverse();
+            let identity = Mat4::identity();
+
+            assert_eq!(test.a_mat * a_mat_inverse, identity);
+            assert_eq!(test.b_mat * b_mat_inverse, identity);
         }
     }
 }
