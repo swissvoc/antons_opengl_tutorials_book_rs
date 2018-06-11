@@ -51,11 +51,11 @@ fn count_vertices<T: BufRead + Seek>(reader: &mut T) -> (usize, usize, usize, us
     (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count)
 }
 
-fn parse_vtn() {
+fn parse_vtn() -> bool {
 
 }
 
-fn parse_vn() {
+fn parse_vn() -> bool {
 
 }
 

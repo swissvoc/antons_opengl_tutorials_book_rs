@@ -13,6 +13,10 @@ pub const ONE_RAD_IN_DEG: f32 = 360.0 / (2.0 * M_PI); // == 57.2957795
 pub const EPSILON: f32 = 0.00001; 
 
 
+///
+/// A representation of two-dimensional vectors, with a
+/// Euclidean metric.
+///
 #[derive(Copy, Clone, Debug)]
 pub struct Vec2 {
     v: [f32; 2],
@@ -39,29 +43,47 @@ impl fmt::Display for Vec2 {
     }
 }
 
+///
+/// A representation of three-dimensional vectors, with a
+/// Euclidean metric.
+///
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Vec3 {
     pub v: [f32; 3],
 }
 
 impl Vec3 {
+    ///
+    /// Create a new vector.
+    ///
     pub fn new(x: f32, y: f32, z: f32) -> Vec3 {
         Vec3 { v: [x, y, z] }
     }
 
+    ///
+    /// Generate a zero vector.
+    ///
     pub fn zero() -> Vec3 {
         Vec3 { v: [0.0, 0.0, 0.0] }
     }
     
+    ///
+    /// Compute the norm (length) of a vector.
+    ///
     pub fn norm(&self) -> f32 {
         f32::sqrt(self.v[0] * self.v[0] + self.v[1] * self.v[1] + self.v[2] * self.v[2])
     }
 
-    // Squared length.
+    ///
+    /// Compute the squared norm (length) of a vector.
+    ///
     pub fn norm2(&self) -> f32 {
         self.v[0] * self.v[0] + self.v[1] * self.v[1] + self.v[2] * self.v[2]
     }
 
+    ///
+    /// Convert an arbitrary vector into a unit vector.
+    ///
     pub fn normalize(&self) -> Vec3 {
         let norm_v = self.norm();
         if norm_v == 0.0 {
@@ -71,10 +93,21 @@ impl Vec3 {
         Vec3::new(self.v[0] / norm_v, self.v[1] / norm_v, self.v[2] / norm_v)
     }
 
+    ///
+    /// Compute the dot product of two vectors.
+    ///
     pub fn dot(&self, other: &Vec3) -> f32 {
         self.v[0] * other.v[0] + self.v[1] * other.v[1] + self.v[2] * other.v[2]
     }
 
+    ///
+    /// Compute the cross product of two three-dimensional vectors. Note that
+    /// with the vectors used in computer graphics (two, three, and four dimensions),
+    /// the cross product is defined only in three dimensions. Also note that the 
+    /// cross product is the hodge dual of the corresponding 2-vector representing 
+    /// the surface element that the crossed vector is normal to. That is, 
+    /// given vectors u and v, u x v == *(u /\ v), where *(.) denotes the hodge dual.
+    ///
     pub fn cross(&self, other: &Vec3) -> Vec3 {
         let x = self.v[1] * other.v[2] - self.v[2] * other.v[1];
         let y = self.v[2] * other.v[0] - self.v[0] * other.v[2];
@@ -83,6 +116,9 @@ impl Vec3 {
         Vec3::new(x, y, z)
     }
 
+    ///
+    /// Compute the squared distance between two vectors.
+    ///
     pub fn get_squared_dist(&self, to: &Vec3) -> f32 {
         let x = (to.v[0] - self.v[0]) * (to.v[0] - self.v[0]);
         let y = (to.v[1] - self.v[1]) * (to.v[1] - self.v[1]);
@@ -92,6 +128,10 @@ impl Vec3 {
     }
 }
 
+///
+/// Construct a new three-dimensional vector in the style of
+/// a GLSL vec3 constructor.
+///
 #[inline]
 pub fn vec3<T: Into<Vec3>>(v: T) -> Vec3 {
     v.into()
@@ -1352,7 +1392,22 @@ mod met4_tests {
                     c: 6.2396,
                     a_mat: Mat4::zero(),
                     b_mat: Mat4::zero(),
-                }
+                },
+                TestCase {
+                    c:  14.5093,
+                    a_mat: super::mat4(
+                        68.32, 0.0,    0.0,   0.0,
+                        0.0,   37.397, 0.0,   0.0,
+                        0.0,   0.0,    9.483, 0.0,
+                        0.0,   0.0,    0.0,   887.710
+                    ),
+                    b_mat: super::mat4(
+                        57.72, 0.0,       0.0,       0.0, 
+                        0.0,   9.5433127, 0.0,       0.0, 
+                        0.0,   0.0,       86.731265, 0.0,
+                        0.0,   0.0,       0.0,       269.1134546
+                    )
+                },
             ]
         }
     }
