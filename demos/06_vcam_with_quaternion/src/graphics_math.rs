@@ -751,6 +751,10 @@ impl Mat4 {
         self.m[0]  * self.m[5]  * self.m[10] * self.m[15]
     }
 
+    pub fn is_invertible(&self) -> bool {
+        self.determinant() != 0.0
+    }
+
     /* returns a 16-element array that is the inverse of a 16-element array (4x4
     matrix). see
     http://www.euclideanspace.com/maths/algebra/matrix/functions/inverse/fourD/index.htm
@@ -1329,6 +1333,16 @@ mod met4_tests {
                         72.0,    936.5,     413.80,    50.311160,  
                         37.6985,  311.8,    60.81,     73.8393
                     ),
+                },
+                TestCase {
+                    c: 6.2396,
+                    a_mat: Mat4::identity(),
+                    b_mat: Mat4::identity(),
+                },
+                TestCase {
+                    c: 6.2396,
+                    a_mat: Mat4::zero(),
+                    b_mat: Mat4::zero(),
                 }
             ]
         }
@@ -1383,24 +1397,50 @@ mod met4_tests {
     #[test]
     fn test_mat_times_mat_inverse_equals_identity() {
         for test in test_cases().iter() {
-            let a_mat_inverse = test.a_mat.inverse();
-            let b_mat_inverse = test.b_mat.inverse();
             let identity = Mat4::identity();
-
-            assert_eq!(a_mat_inverse * test.a_mat, identity);
-            assert_eq!(b_mat_inverse * test.b_mat, identity);
+            if test.a_mat.is_invertible() {
+                let a_mat_inverse = test.a_mat.inverse();
+                assert_eq!(a_mat_inverse * test.a_mat, identity);
+            }
+            if test.b_mat.is_invertible() {
+                let b_mat_inverse = test.b_mat.inverse();
+                assert_eq!(b_mat_inverse * test.b_mat, identity);
+            }
         }
     }
 
     #[test]
     fn test_mat_inverse_times_mat_equals_identity() {
         for test in test_cases().iter() {
-            let a_mat_inverse = test.a_mat.inverse();
-            let b_mat_inverse = test.b_mat.inverse();
             let identity = Mat4::identity();
-
-            assert_eq!(test.a_mat * a_mat_inverse, identity);
-            assert_eq!(test.b_mat * b_mat_inverse, identity);
+            if test.a_mat.is_invertible() {
+                let a_mat_inverse = test.a_mat.inverse();
+                assert_eq!(test.a_mat * a_mat_inverse, identity);
+            }
+            if test.b_mat.is_invertible() {
+                let b_mat_inverse = test.b_mat.inverse();
+                assert_eq!(test.b_mat * b_mat_inverse, identity);
+            }
         }
     }
+
+    #[test]
+    fn test_mat_transpose_transpose_equals_mat() {
+        for test in test_cases().iter() {
+            let a_mat_tr_tr = test.a_mat.transpose().transpose();
+            let b_mat_tr_tr = test.b_mat.transpose().transpose();
+            
+            assert_eq!(a_mat_tr_tr, test.a_mat);
+            assert_eq!(b_mat_tr_tr, test.b_mat);
+        }
+    }
+
+    #[test]
+    fn test_identity_transpose_equals_identity() {
+        let identity = Mat4::identity();
+        let identity_tr = identity.transpose();
+            
+        assert_eq!(identity, identity_tr);
+    }
 }
+
