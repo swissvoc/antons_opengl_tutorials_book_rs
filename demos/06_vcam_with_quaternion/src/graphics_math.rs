@@ -540,6 +540,15 @@ impl fmt::Display for Vec4 {
     }
 }
 
+impl cmp::PartialEq for Vec4 {
+    fn eq(&self, other: &Vec4) -> bool {
+        (f32::abs(self.v[0] - other.v[0]) < EPSILON) &&
+        (f32::abs(self.v[1] - other.v[1]) < EPSILON) &&
+        (f32::abs(self.v[2] - other.v[2]) < EPSILON) &&
+        (f32::abs(self.v[3] - other.v[3]) < EPSILON)
+    }
+}
+
 ///
 /// The `Mat3` type represents 3x3 matrices in column-major order.
 ///
@@ -1284,7 +1293,7 @@ mod vec3_tests {
 
 mod met4_tests {
     use std::slice::Iter;
-    use super::Mat4;
+    use super::{Vec3, Mat4};
 
     struct TestCase {
         c: f32,
@@ -1441,6 +1450,17 @@ mod met4_tests {
         let identity_tr = identity.transpose();
             
         assert_eq!(identity, identity_tr);
+    }
+
+    #[test]
+    fn test_identity_mat4_translates_vector_along_vector() {
+        let v = super::vec3((2.0, 2.0, 2.0));
+        let trans_mat = Mat4::identity().translate(&v);
+        let zero_vec4 = super::vec4((0.0, 0.0, 0.0, 1.0));
+        let zero_vec3 = super::vec3((0.0, 0.0, 0.0));
+
+        let result = trans_mat * zero_vec4;
+        assert_eq!(result, super::vec4((zero_vec3 + v, 1.0)));
     }
 }
 
