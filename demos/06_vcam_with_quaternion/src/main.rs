@@ -17,7 +17,6 @@ use gl::types::{GLfloat, GLsizeiptr, GLvoid};
 use std::mem;
 use std::ptr;
 
-use std::process;
 use gl_utils::*;
 
 use graphics_math as math;

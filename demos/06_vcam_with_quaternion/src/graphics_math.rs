@@ -1,3 +1,4 @@
+use std::cmp;
 use std::fmt;
 use std::ops;
 use std::convert::From;
@@ -37,7 +38,7 @@ impl fmt::Display for Vec2 {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Vec3 {
     pub v: [f32; 3],
 }
@@ -476,6 +477,7 @@ impl<'a> ops::DivAssign<f32> for &'a mut Vec3 {
     }
 }
 
+
 #[derive(Copy, Clone, Debug)]
 pub struct Vec4 {
     pub v: [f32; 4],
@@ -611,7 +613,7 @@ impl convert::AsMut<[f32; 9]> for Mat3 {
 ///
 /// The `Mat4` type represents 4x4 matrices in column-major order.
 ///
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Mat4 {
     m: [f32; 16],
 }
@@ -1161,3 +1163,185 @@ impl<'a> ops::Add<&'a Versor> for Versor {
 }
 
 
+mod vec2_tests {
+    
+}
+
+mod vec3_tests {
+    use std::slice::Iter;
+    use super::Vec3;
+
+    struct TestCase {
+        c: f32,
+        x: Vec3,
+        y: Vec3,
+    }
+
+    struct Test {
+        tests: Vec<TestCase>,
+    }
+
+    impl Test {
+        fn iter(&self) -> TestIter {
+            TestIter {
+                inner: self.tests.iter()
+            }
+        }
+    }
+
+    struct TestIter<'a> {
+        inner: Iter<'a, TestCase>,
+    }
+
+    impl<'a> Iterator for TestIter<'a> {
+        type Item = &'a TestCase;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.inner.next()
+        }
+    }
+
+    fn test_cases() -> Test {
+        Test {
+            tests: vec![
+                TestCase {
+                    c: 802.3435169,
+                    x: super::vec3((80.0,  23.43, 43.569)),
+                    y: super::vec3((6.741, 426.1, 23.5724)),
+                },
+                TestCase {
+                    c: 33.249539,
+                    x: super::vec3((27.6189, 13.90, 4.2219)),
+                    y: super::vec3((258.083, 31.70, 42.17))
+                },
+                TestCase {
+                    c: 7.04217,
+                    x: super::vec3((70.0,  49.0,  95.0)),
+                    y: super::vec3((89.9138, 36.84, 427.46894)),
+                },
+                TestCase {
+                    c: 61.891390,
+                    x: super::vec3((8827.1983, 89.5049494, 56.31)),
+                    y: super::vec3((89.0, 72.0, 936.5)),
+                }
+            ]
+        }
+    }
+
+    #[test]
+    fn test_addition() {
+        for test in test_cases().iter() {
+            let expected = super::vec3((test.x.v[0] + test.y.v[0], test.x.v[1] + test.y.v[1], test.x.v[2] + test.y.v[2]));
+            let result = test.x + test.y;
+            assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_subtraction() {
+        for test in test_cases().iter() {
+            let expected = super::vec3((test.x.v[0] - test.y.v[0], test.x.v[1] - test.y.v[1], test.x.v[2] - test.y.v[2]));
+            let result = test.x - test.y;
+            assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_scalar_multiplication() {
+        for test in test_cases().iter() {
+            let expected = super::vec3((test.c * test.x.v[0], test.c * test.x.v[1], test.c * test.x.v[2]));
+            let result = test.x * test.c;
+            assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_scalar_division() {
+        for test in test_cases().iter() {
+            let expected = super::vec3((test.x.v[0] / test.c, test.x.v[1] / test.c, test.x.v[2] / test.c));
+            let result = test.x / test.c;
+            assert_eq!(result, expected);
+        }
+    }
+}
+
+mod met4_tests {
+    use std::slice::Iter;
+    use super::Mat4;
+
+    struct TestCase {
+        c: f32,
+        a_mat: Mat4,
+        b_mat: Mat4,
+    }
+
+    struct Test {
+        tests: Vec<TestCase>,
+    }
+
+    impl Test {
+        fn iter(&self) -> TestIter {
+            TestIter {
+                inner: self.tests.iter()
+            }
+        }
+    }
+
+    struct TestIter<'a> {
+        inner: Iter<'a, TestCase>,
+    }
+
+    impl<'a> Iterator for TestIter<'a> {
+        type Item = &'a TestCase;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.inner.next()
+        }
+    }
+
+    fn test_cases() -> Test {
+        Test {
+            tests: vec![
+                TestCase {
+                    c: 802.3435169,
+                    a_mat: super::mat4(
+                        80.0,   23.43,   43.569,  6.741, 
+                        426.1,  23.5724, 27.6189, 13.90,
+                        4.2219, 258.083, 31.70,   42.17, 
+                        70.0,   49.0,    95.0,    89.9138
+                    ),
+                    b_mat: super::mat4(
+                        36.84,   427.46894, 8827.1983, 89.5049494, 
+                        7.04217, 61.891390, 56.31,     89.0, 
+                        72.0,    936.5,     413.80,    50.311160,  
+                        37.6985,  311.8,    60.81,     73.8393
+                    ),
+                }
+            ]
+        }
+    }
+
+    #[test]
+    fn test_mat_times_identity_equals_mat() {
+        for test in test_cases().iter() {
+            let a_mat_times_identity = test.a_mat * Mat4::identity();
+            let b_mat_times_identity = test.b_mat * Mat4::identity();
+
+            assert_eq!(a_mat_times_identity, test.a_mat);
+            assert_eq!(b_mat_times_identity, test.b_mat);
+        }
+    }
+
+    #[test]
+    fn test_mat_times_zero_equals_zero() {
+        for test in test_cases().iter() {
+            let a_mat_times_zero = test.a_mat * Mat4::zero();
+            let b_mat_times_zero = test.b_mat * Mat4::zero();
+
+            assert_eq!(a_mat_times_zero, Mat4::zero());
+            assert_eq!(b_mat_times_zero, Mat4::zero());
+        }
+    }
+
+
+}
