@@ -1,14 +1,19 @@
 use std::fs::File;
 use std::io;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
 use std::mem;
 
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct ObjMesh {
     pub points_count: usize,
     pub points: Vec<f32>,
     pub tex_coords: Vec<f32>,
     pub normals: Vec<f32>,
+}
+
+pub fn load_obj_mesh<T: Read>(handle: &mut T) -> Result<ObjMesh, ()> {
+    Err(())
 }
 
 pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
@@ -164,3 +169,88 @@ pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
     })
 }
 
+mod parser_tests {
+    use super::ObjMesh;
+    use std::io::BufReader;
+
+    struct Test {
+        obj_file: String,
+        obj_mesh: ObjMesh,   
+    }
+
+    fn test() -> Test {
+        let obj_file = String::from("         \
+            o object1                         \
+            g cube                            \
+            v  0.0  0.0  0.0                  \
+            v  0.0  0.0  1.0                  \
+            v  0.0  1.0  0.0                  \
+            v  0.0  1.0  1.0                  \
+            v  1.0  0.0  0.0                  \
+            v  1.0  0.0  1.0                  \
+            v  1.0  1.0  0.0                  \
+            v  1.0  1.0  1.0                  \
+                                              \
+            vn  0.0  0.0  1.0                 \
+            vn  0.0  0.0 -1.0                 \
+            vn  0.0  1.0  0.0                 \
+            vn  0.0 -1.0  0.0                 \
+            vn  1.0  0.0  0.0                 \
+            vn -1.0  0.0  0.0                 \
+                                              \
+            f  1//2  7//2  5//2               \
+            f  1//2  3//2  7//2               \
+            f  1//6  4//6  3//6               \
+            f  1//6  2//6  4//6               \
+            f  3//3  8//3  7//3               \
+            f  3//3  4//3  8//3               \
+            f  5//5  7//5  8//5               \
+            f  5//5  8//5  6//5               \
+            f  1//4  5//4  6//4               \
+            f  1//4  6//4  2//4               \
+            f  2//1  6//1  8//1               \
+            f  2//1  8//1  4//1               \
+        ");
+        let points_count = 8;
+        let points = vec![
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 1.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 1.0,
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 1.0,
+            1.0, 1.0, 0.0,
+            1.0, 1.0, 1.0,
+        ];
+        let tex_coords = vec![];
+        let normals = vec![
+             0.0,  0.0,  1.0,
+             0.0,  0.0, -1.0,
+             0.0,  1.0,  0.0,
+             0.0, -1.0,  0.0,
+             1.0,  0.0,  0.0,
+            -1.0,  0.0,  0.0,
+        ];
+
+        let obj_mesh = ObjMesh {
+            points_count: points_count,
+            points: points,
+            tex_coords: tex_coords,
+            normals: normals,
+        };
+
+        Test {
+            obj_file: obj_file,
+            obj_mesh: obj_mesh,
+        }
+    }
+
+    #[test]
+    fn test_parse_obj_mesh() {
+        let test = test();
+        let result = super::load_obj_mesh(&mut BufReader::new(test.obj_file.as_bytes())).unwrap();
+        let expected = test.obj_mesh;
+
+        assert_eq!(result, expected);
+    }
+}
