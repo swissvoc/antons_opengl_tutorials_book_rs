@@ -27,8 +27,8 @@ use math::{Mat4};
 
 const GL_LOG_FILE: &str = "gl.log";
 const MESH_FILE: &str = "src/sphere.obj";
-const VERTEX_SHADER_FILE: &str = "test_vs.glsl";
-const FRAGMENT_SHADER_FILE: &str = "test_fs.glsl";
+const VERTEX_SHADER_FILE: &str = "src/test_vs.glsl";
+const FRAGMENT_SHADER_FILE: &str = "src/test_fs.glsl";
 const NUM_SPHERES: usize = 4;
 
 static mut PREVIOUS_SECONDS: f64 = 0.;
@@ -108,15 +108,11 @@ fn main() {
 
     /*------------------------------CREATE
      * GEOMETRY-------------------------------*/
-    let mut vp = vec![]; // array of vertex points
-    let mut vt = vec![]; // array of vertex normals
-    let mut vn = vec![]; // array of texture coordinates
-    let mut point_count = 0;
-    obj_parser::load_obj_file(MESH_FILE, &mut vp, &mut vt, &mut vn, &mut point_count);
-
-    println!("vp = {:?}", vp);
-    println!("vt = {:?}", vt);
-    println!("vn = {:?}", vn);
+    let mesh = obj_parser::load_obj_file(MESH_FILE).unwrap();
+    let vp = mesh.points; // array of vertex points
+    let vt = mesh.tex_coords; // array of vertex normals
+    let vn = mesh.normals; // array of texture coordinates
+    let point_count = mesh.points_count;
 
     let mut vao = 0;
     unsafe {

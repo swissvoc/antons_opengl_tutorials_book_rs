@@ -1,29 +1,32 @@
 use std::fs::File;
+use std::io;
 use std::io::{BufRead, BufReader};
 use std::mem;
 
 
-pub fn load_obj_file(
-    file_name: &str, 
-    points: &mut [f32], tex_coords: &mut[f32],
-    normals: &mut [f32], point_count: &mut usize) -> bool {
+pub struct ObjMesh {
+    pub points_count: usize,
+    pub points: Vec<f32>,
+    pub tex_coords: Vec<f32>,
+    pub normals: Vec<f32>,
+}
 
+pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
     let mut current_unsorted_vp = 0;
     let mut current_unsorted_vt = 0;
     let mut current_unsorted_vn = 0;
 
-    let file = File::open(file_name);
-    if file.is_err() {
-        eprintln!("ERROR: could not find file {}", file_name);
-        
-        return false;
-    }
+    let file = match File::open(file_name) {
+        Ok(handle) => handle,
+        Err(e) => {
+            eprintln!("ERROR: could not find file {}", file_name);
+            return Err(e);
+        }
+    };
 
-    let file = file.unwrap();
     let reader = BufReader::new(file);
 
     // First count points in file so we know how much mem to allocate.
-    *point_count = 0;
     let mut unsorted_vp_count = 0;
     let mut unsorted_vt_count = 0;
     let mut unsorted_vn_count = 0;
@@ -54,6 +57,11 @@ pub fn load_obj_file(
     let mut unsorted_vn_array = vec![0.0; 3 * unsorted_vn_count];
 
     println!("Allocated {} bytes for mesh", 3 * face_count * 8 * mem::size_of::<f32>());
+
+    let mut points     = vec![];
+    let mut tex_coords = vec![];
+    let mut normals    = vec![];
+    let mut points_count = 0;
 
     let file = File::open(file_name).unwrap();
     let reader = BufReader::new(file);
@@ -101,7 +109,7 @@ pub fn load_obj_file(
                      texture coordinates, and normals"
                 );
                 
-                return false;
+                panic!()
             }
 
             let (vp0, vt0, vn0, vp1, vt1, vn1, vp2, vt2, vn2) = scan_fmt!(
@@ -119,34 +127,40 @@ pub fn load_obj_file(
             for i in 0..3 {
                 if (vp[i] - 1 < 0 ) || (vp[i] - 1 >= unsorted_vp_count) {
                     eprintln!("ERROR: invalid vertex position index in face");
-                    return false;
+                    panic!();
                 }
                 if (vt[i] - 1 < 0) || (vt[i] - 1 >= unsorted_vt_count) {
                     eprintln!("ERROR: invalid texture coord index {} in face.", vt[i]);
-                    return false;
+                    panic!();
                 }
                 if (vn[i] - 1 < 0) || (vn[i] - 1 >= unsorted_vn_count) {
                     println!("ERROR: invalid vertex normal index in face");
-                    return false;
+                    panic!();
                 }
 
-                points[*point_count * 3]     = unsorted_vp_array[(vp[i] - 1) * 3];
-                points[*point_count * 3 + 1] = unsorted_vp_array[(vp[i] - 1) * 3 + 1];
-                points[*point_count * 3 + 2] = unsorted_vp_array[(vp[i] - 1) * 3 + 2];
+                points.push(unsorted_vp_array[(vp[i] - 1) * 3]);
+                points.push(unsorted_vp_array[(vp[i] - 1) * 3 + 1]);
+                points.push(unsorted_vp_array[(vp[i] - 1) * 3 + 2]);
                 
-                tex_coords[*point_count * 2]     = unsorted_vt_array[(vt[i] - 1) * 2];
-                tex_coords[*point_count * 2 + 1] = unsorted_vt_array[(vt[i] - 1) * 2 + 1];
+                tex_coords.push(unsorted_vt_array[(vt[i] - 1) * 2]);
+                tex_coords.push(unsorted_vt_array[(vt[i] - 1) * 2 + 1]);
                 
-                normals[*point_count * 3]     = unsorted_vn_array[(vn[i] - 1) * 3];
-                normals[*point_count * 3 + 1] = unsorted_vn_array[(vn[i] - 1) * 3 + 1];
-                normals[*point_count * 3 + 2] = unsorted_vn_array[(vn[i] - 1) * 3 + 2];
+                normals.push(unsorted_vn_array[(vn[i] - 1) * 3]);
+                normals.push(unsorted_vn_array[(vn[i] - 1) * 3 + 1]);
+                normals.push(unsorted_vn_array[(vn[i] - 1) * 3 + 2]);
                 
-                *point_count += 1;
+                points_count += 1;
             }
         }
     }
 
-    println!("Allocated {} points", point_count);
+    println!("Allocated {} points", points_count);
     
-    return true;
+    Ok(ObjMesh {
+        points_count: points_count,
+        points: points,
+        tex_coords: tex_coords,
+        normals: normals,
+    })
 }
+
