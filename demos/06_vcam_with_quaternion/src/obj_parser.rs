@@ -80,7 +80,6 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
     reader.seek(SeekFrom::Start(0)).unwrap();
     for line in reader.lines().map(|st| st.unwrap()) {
         // Vertex
-        println!("line = \"{}\"", line);
         let bytes = line.as_bytes();
         if bytes[0] == b'v' {
             // Vertex point.
@@ -197,7 +196,12 @@ mod parser_tests {
 
     struct Test {
         obj_file: String,
-        obj_mesh: ObjMesh,   
+        obj_mesh: ObjMesh,
+        vp_count: usize,
+        vt_count: usize,
+        vn_count: usize,
+        face_count: usize,
+
     }
 
     fn test() -> Test {
@@ -264,7 +268,26 @@ mod parser_tests {
         Test {
             obj_file: obj_file,
             obj_mesh: obj_mesh,
+            vp_count: 8,
+            vt_count: 0,
+            vn_count: 6,
+            face_count: 12,
         }
+    }
+
+    #[test]
+    fn test_count_vertices() {
+        let test = test();
+        let mut reader = BufReader::new(Cursor::new(test.obj_file.as_bytes()));
+        let (unsorted_vp_count, 
+             unsorted_vt_count, 
+             unsorted_vn_count, 
+             face_count) = super::count_vertices(&mut reader);
+        
+        assert_eq!(unsorted_vp_count, test.vp_count);
+        assert_eq!(unsorted_vt_count, test.vt_count);
+        assert_eq!(unsorted_vn_count, test.vn_count);
+        assert_eq!(face_count, test.face_count);
     }
 
     #[test]
