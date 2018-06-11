@@ -30,7 +30,7 @@ const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
 const NUM_SPHERES: usize = 4;
 
-static mut PREVIOUS_SECONDS: f64 = 0.;
+static mut PREVIOUS_SECONDS: f64 = 0.0;
 
 /* create a unit quaternion q from an angle in degrees a, and an axis x,y,z */
 fn create_versor(q: &mut [f32; 4], degrees: f32, x: f32, y: f32, z: f32) {
@@ -148,7 +148,7 @@ fn main() {
     let cam_heading_speed = 100.0; // 30 degrees per second
     let mut cam_pos = math::vec3((0.0, 0.0, 5.0));
     let cam_heading = 0.0;     // y-rotation in degrees
-    let mat_trans = Mat4::translate(&Mat4::identity(), &math::vec3((-cam_pos.v[0], -cam_pos.v[1], -cam_pos.v[2])));
+    let mut mat_trans = Mat4::translate(&Mat4::identity(), &math::vec3((-cam_pos.v[0], -cam_pos.v[1], -cam_pos.v[2])));
     // Rotation matrix from my maths library. just holds 16 floats
     let mut mat_rot = Mat4::zero();
     // make a quaternion representing negated initial camera orientation
@@ -171,7 +171,7 @@ fn main() {
         gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
     }
 
-    // a world position for each sphere in the scene
+    // A world position for each sphere in the scene.
     let sphere_pos_wor = [
         math::vec3((-2.0, 0.0,  0.0)), math::vec3((2.0, 0.0,  0.0)),
         math::vec3((-2.0, 0.0, -2.0)), math::vec3((1.5, 1.0, -1.0))
@@ -378,7 +378,7 @@ fn main() {
                 cam_pos = cam_pos + math::vec3(fwd) * -move_to.v[2];
                 cam_pos = cam_pos + math::vec3(up) * move_to.v[1];
                 cam_pos = cam_pos + math::vec3(rgt) * move_to.v[0];
-                let mat_trans = Mat4::translate(&Mat4::identity(), &math::vec3(cam_pos));
+                mat_trans = Mat4::translate(&Mat4::identity(), &math::vec3(cam_pos));
 
                 view_mat = mat_rot.inverse() * mat_trans.inverse();
                 gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
