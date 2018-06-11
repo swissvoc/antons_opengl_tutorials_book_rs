@@ -112,8 +112,8 @@ fn parse_vn() -> bool {
 }
 
 pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
-    // First, we count the number points in the file so we know how much 
-    // memory to allocate.
+    // First, we count the number of vertices, texture vertices, normal vectors, and faces 
+    // in the file so we know how much memory to allocate.
     let (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count) = count_vertices(reader);
     
     let mut current_unsorted_vp = 0;
@@ -219,8 +219,6 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
             }
         }
     }
-
-    println!("Allocated {} points", point_count);
     
     Ok(ObjMesh::new(points, tex_coords, normals))
 }
