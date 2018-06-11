@@ -1,35 +1,21 @@
 use std::fs::File;
 use std::io;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::mem;
 
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ObjMesh {
-    pub points_count: usize,
+    pub point_count: usize,
     pub points: Vec<f32>,
     pub tex_coords: Vec<f32>,
     pub normals: Vec<f32>,
 }
 
-pub fn load_obj_mesh<T: Read>(handle: &mut T) -> Result<ObjMesh, ()> {
-    Err(())
-}
-
-pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
+pub fn load_obj_mesh<T: BufRead>(handle: &mut T) -> io::Result<ObjMesh> {
     let mut current_unsorted_vp = 0;
     let mut current_unsorted_vt = 0;
     let mut current_unsorted_vn = 0;
-
-    let file = match File::open(file_name) {
-        Ok(handle) => handle,
-        Err(e) => {
-            eprintln!("ERROR: could not find file {}", file_name);
-            return Err(e);
-        }
-    };
-
-    let reader = BufReader::new(file);
 
     // First count points in file so we know how much mem to allocate.
     let mut unsorted_vp_count = 0;
@@ -37,7 +23,7 @@ pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
     let mut unsorted_vn_count = 0;
     let mut face_count = 0;
 
-    for line in reader.lines().map(|st| st.unwrap()) {
+    for line in handle.lines().map(|st| st.unwrap()) {
         let bytes = line.as_bytes();
         if bytes[0] == b'v' {
             if bytes[1] == b' ' {
@@ -66,7 +52,7 @@ pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
     let mut points     = vec![];
     let mut tex_coords = vec![];
     let mut normals    = vec![];
-    let mut points_count = 0;
+    let mut point_count = 0;
 
     let file = File::open(file_name).unwrap();
     let reader = BufReader::new(file);
@@ -154,19 +140,32 @@ pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
                 normals.push(unsorted_vn_array[(vn[i] - 1) * 3 + 1]);
                 normals.push(unsorted_vn_array[(vn[i] - 1) * 3 + 2]);
                 
-                points_count += 1;
+                point_count += 1;
             }
         }
     }
 
-    println!("Allocated {} points", points_count);
+    println!("Allocated {} points", point_count);
     
     Ok(ObjMesh {
-        points_count: points_count,
+        point_count: point_count,
         points: points,
         tex_coords: tex_coords,
         normals: normals,
     })
+}
+
+pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
+    let file = match File::open(file_name) {
+        Ok(handle) => handle,
+        Err(e) => {
+            eprintln!("ERROR: could not find file {}", file_name);
+            return Err(e);
+        }
+    };
+
+    let mut reader = BufReader::new(file);
+    load_obj_mesh(&mut reader)
 }
 
 mod parser_tests {
@@ -211,7 +210,7 @@ mod parser_tests {
             f  2//1  6//1  8//1               \
             f  2//1  8//1  4//1               \
         ");
-        let points_count = 8;
+        let point_count = 8;
         let points = vec![
             0.0, 0.0, 0.0,
             0.0, 0.0, 1.0,
@@ -233,7 +232,7 @@ mod parser_tests {
         ];
 
         let obj_mesh = ObjMesh {
-            points_count: points_count,
+            point_count: point_count,
             points: points,
             tex_coords: tex_coords,
             normals: normals,
@@ -254,3 +253,4 @@ mod parser_tests {
         assert_eq!(result, expected);
     }
 }
+
