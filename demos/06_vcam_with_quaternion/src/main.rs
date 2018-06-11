@@ -25,7 +25,6 @@ use graphics_math as math;
 use math::{Mat4};
 
 
-const GL_LOG_FILE: &str = "gl.log";
 const MESH_FILE: &str = "src/sphere.obj";
 const VERTEX_SHADER_FILE: &str = "src/test_vs.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test_fs.glsl";
@@ -103,7 +102,7 @@ fn mult_quat_quat(result: &mut [f32; 4], r: &[f32; 4], s: &[f32; 4]) {
 fn main() {
     // Start OpenGL.
     restart_gl_log();
-    // Start GL context and O/S window using the GLFW helper library.
+    // Start GL context and O/S window using the GLFW helper library
     let (mut glfw, mut g_window, mut g_events) = start_gl().unwrap();
 
     /*------------------------------CREATE
@@ -174,7 +173,7 @@ fn main() {
 
     // a world position for each sphere in the scene
     let sphere_pos_wor = [
-        math::vec3((-2.0, 0.0,  0.0)),  math::vec3((2.0, 0.0,  0.0)),
+        math::vec3((-2.0, 0.0,  0.0)), math::vec3((2.0, 0.0,  0.0)),
         math::vec3((-2.0, 0.0, -2.0)), math::vec3((1.5, 1.0, -1.0))
     ];    
     // Unique model matrix for each sphere.
