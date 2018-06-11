@@ -12,6 +12,32 @@ pub struct ObjMesh {
     pub normals: Vec<f32>,
 }
 
+impl ObjMesh {
+    fn new(points: Vec<f32>, tex_coords: Vec<f32>, normals: Vec<f32>) -> ObjMesh {
+        ObjMesh {
+            point_count: points.len() / 3,
+            points: points,
+            tex_coords: tex_coords,
+            normals: normals,
+        }
+    }
+
+    #[inline]
+    fn points(&self) -> &[f32] {
+        &self.points
+    }
+
+    #[inline]
+    fn tex_coords(&self) -> &[f32] {
+        &self.tex_coords
+    }
+
+    #[inline]
+    fn normals(&self) -> &[f32] {
+        &self.normals
+    }
+}
+
 
 fn skip_spaces(bytes: &[u8]) -> usize {
     let mut index = 0;
@@ -173,12 +199,7 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
 
     println!("Allocated {} points", point_count);
     
-    Ok(ObjMesh {
-        point_count: point_count,
-        points: points,
-        tex_coords: tex_coords,
-        normals: normals,
-    })
+    Ok(ObjMesh::new(points, tex_coords, normals))
 }
 
 pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
