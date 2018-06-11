@@ -35,16 +35,17 @@ fn count_vertices<T: BufRead + Seek>(reader: &mut T) -> (usize, usize, usize, us
     for line in reader.lines().map(|st| st.unwrap()) {
         let bytes = line.as_bytes();
         let i = skip_spaces(bytes);
-        if bytes[i] == b'v' {
-            if bytes[i+1] == b' ' {
-                unsorted_vp_count += 1;
-            } else if bytes[i+1] == b't' {
-                unsorted_vt_count += 1;
-            } else if bytes[i+1] == b'n' {
-                unsorted_vn_count += 1;
+        match bytes[i] {
+            b'v' => match bytes[i + 1] {
+                b' ' => unsorted_vp_count += 1,
+                b't' => unsorted_vt_count += 1,
+                b'n' => unsorted_vn_count += 1,
+                _ => {},
             }
-        } else if bytes[i] == b'f' {
-            face_count += 1;
+            b'f' => {
+                face_count += 1;
+            }
+            _ => {}
         }
     }
 
@@ -52,11 +53,11 @@ fn count_vertices<T: BufRead + Seek>(reader: &mut T) -> (usize, usize, usize, us
 }
 
 fn parse_vtn() -> bool {
-
+    false
 }
 
 fn parse_vn() -> bool {
-
+    false
 }
 
 pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
