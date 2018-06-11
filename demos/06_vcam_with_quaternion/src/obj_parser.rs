@@ -293,9 +293,8 @@ mod parser_tests {
     #[test]
     fn test_parse_obj_mesh() {
         let test = test();
-        let result = super::load_obj_mesh(
-            &mut BufReader::new(Cursor::new(test.obj_file.as_bytes()))
-        ).unwrap();
+        let mut reader = BufReader::new(Cursor::new(test.obj_file.as_bytes()));
+        let result = super::load_obj_mesh(&mut reader).unwrap();
         let expected = test.obj_mesh;
 
         assert_eq!(result, expected);
