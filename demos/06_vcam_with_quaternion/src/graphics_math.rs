@@ -570,6 +570,10 @@ impl Mat3 {
     pub fn as_ptr(&self) -> *const f32 {
         self.m.as_ptr()
     }
+
+    pub fn as_mut_ptr(&mut self) -> *mut f32 {
+        self.m.as_mut_ptr()
+    }
 }
 
 impl fmt::Display for Mat3 {
@@ -818,6 +822,10 @@ impl Mat4 {
 
     pub fn as_ptr(&self) -> *const f32 {
         self.m.as_ptr()
+    }
+
+    pub fn as_mut_ptr(&mut self) -> *mut f32 {
+        self.m.as_mut_ptr()
     }
 }
 
