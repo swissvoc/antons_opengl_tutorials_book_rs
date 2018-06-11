@@ -1343,5 +1343,16 @@ mod met4_tests {
         }
     }
 
+    #[test]
+    fn test_mat_times_identity_equals_identity_times_mat() {
+        for test in test_cases().iter() {
+            let a_mat_times_identity = test.a_mat * Mat4::identity();
+            let identity_times_a_mat = Mat4::identity() * test.a_mat;
+            let b_mat_times_identity = test.b_mat * Mat4::identity();
+            let identity_times_b_mat = Mat4::identity() * test.b_mat;
 
+            assert_eq!(a_mat_times_identity, identity_times_a_mat);
+            assert_eq!(b_mat_times_identity, identity_times_b_mat);
+        }
+    }
 }
