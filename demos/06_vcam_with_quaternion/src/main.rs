@@ -148,17 +148,17 @@ fn main() {
     let cam_speed = 5.0;           // 1 unit per second
     let cam_heading_speed = 100.0; // 30 degrees per second
     let mut cam_pos = math::vec3((0.0, 0.0, 5.0));
-    let mut cam_heading = 0.0;     // y-rotation in degrees
-    let mat_T = Mat4::translate(&Mat4::identity(), &math::vec3((-cam_pos.v[0], -cam_pos.v[1], -cam_pos.v[2])));
+    let cam_heading = 0.0;     // y-rotation in degrees
+    let mat_trans = Mat4::translate(&Mat4::identity(), &math::vec3((-cam_pos.v[0], -cam_pos.v[1], -cam_pos.v[2])));
     // Rotation matrix from my maths library. just holds 16 floats
-    let mut mat_R = Mat4::zero();
+    let mut mat_rot = Mat4::zero();
     // make a quaternion representing negated initial camera orientation
     let mut quaternion = [0.0; 4];
     create_versor(&mut quaternion, -cam_heading, 0.0, 1.0, 0.0);
     // convert the quaternion to a rotation matrix (just an array of 16 floats)
-    quat_to_mat4(&mut mat_R.m, &quaternion);
+    quat_to_mat4(&mut mat_rot.m, &quaternion);
     // combine the inverse rotation and transformation to make a view matrix
-    let mut view_mat = &mat_R * &mat_T;
+    let mut view_mat = &mat_rot * &mat_trans;
     // keep track of some useful vectors that can be used for keyboard movement
     let mut fwd = math::vec4((0.0, 0.0, -1.0, 0.0));
     let mut rgt = math::vec4((1.0, 0.0, 0.0, 0.0));
@@ -190,19 +190,18 @@ fn main() {
         gl::CullFace(gl::BACK);       // cull back face
         gl::FrontFace(gl::CCW);       // set counter-clock-wise vertex order to mean the front
         gl::ClearColor(0.2, 0.2, 0.2, 1.0); // grey background to help spot mistakes
-        gl::Viewport( 0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32);
+        gl::Viewport(0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32);
 
         /*-------------------------------RENDERING
         * LOOP-------------------------------*/
         while !g_window.should_close() {
             // Update timers.
-            //PREVIOUS_SECONDS = glfw.get_time();
             let current_seconds = glfw.get_time();
             let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
             PREVIOUS_SECONDS = current_seconds;
             _update_fps_counter(&glfw, &mut g_window);
 
-            // wipe the drawing surface clear
+            // Wipe the drawing surface clear.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             gl::UseProgram(shader_programme);
@@ -275,10 +274,10 @@ fn main() {
                     mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
 
                     // recalc axes to suit new orientation
-                    quat_to_mat4(&mut mat_R.m, &quaternion);
-                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                    up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                    quat_to_mat4(&mut mat_rot.m, &quaternion);
+                    fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
                 }
                 _ => {}
             }
@@ -292,10 +291,10 @@ fn main() {
                     mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
 
                     // Recalculate axes to suit new orientation.
-                    quat_to_mat4(&mut mat_R.m, &quaternion);
-                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                    up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                    quat_to_mat4(&mut mat_rot.m, &quaternion);
+                    fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
                 }
                 _ => {}
             }
@@ -309,10 +308,10 @@ fn main() {
                     mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
 
                     // Recalculate axes to suit new orientation.
-                    quat_to_mat4(&mut mat_R.m, &quaternion);
-                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                    up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                    quat_to_mat4(&mut mat_rot.m, &quaternion);
+                    fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
                 }
                 _ => {}
             }
@@ -326,10 +325,10 @@ fn main() {
                     mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
         
                     // recalc axes to suit new orientation
-                    quat_to_mat4(&mut mat_R.m, &quaternion);
-                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                    up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                    quat_to_mat4(&mut mat_rot.m, &quaternion);
+                    fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
                 }
                 _ => {}
             }
@@ -343,10 +342,10 @@ fn main() {
                     mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
 
                     // Recalculate axes to suit new orientation.
-                    quat_to_mat4(&mut mat_R.m, &quaternion);
-                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                    up  = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                    quat_to_mat4(&mut mat_rot.m, &quaternion);
+                    fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
                 }
                 _ => {}
             }
@@ -360,17 +359,17 @@ fn main() {
                     mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
 
                     // recalc axes to suit new orientation
-                    quat_to_mat4(&mut mat_R.m, &quaternion);
-                    fwd = mat_R * math::vec4((0.0, 0.0, -1.0, 0.0));
-                    rgt = mat_R * math::vec4((1.0, 0.0, 0.0, 0.0));
-                    up = mat_R * math::vec4((0.0, 1.0, 0.0, 0.0));
+                    quat_to_mat4(&mut mat_rot.m, &quaternion);
+                    fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
+                    rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
+                    up = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
                 }
                 _ => {}
             }
 
             // Update view matrix
             if cam_moved {
-                quat_to_mat4(&mut mat_R.m, &quaternion);
+                quat_to_mat4(&mut mat_rot.m, &quaternion);
 
                 // checking for fp errors
                 //  printf ("dot fwd . up %f\n", dot (fwd, up));
@@ -380,9 +379,9 @@ fn main() {
                 cam_pos = cam_pos + math::vec3(fwd) * -move_to.v[2];
                 cam_pos = cam_pos + math::vec3(up) * move_to.v[1];
                 cam_pos = cam_pos + math::vec3(rgt) * move_to.v[0];
-                let mat_T = Mat4::translate(&Mat4::identity(), &math::vec3(cam_pos));
+                let mat_trans = Mat4::translate(&Mat4::identity(), &math::vec3(cam_pos));
 
-                view_mat = &mat_R.inverse() * &mat_T.inverse();
+                view_mat = &mat_rot.inverse() * &mat_trans.inverse();
                 gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
             }
         
