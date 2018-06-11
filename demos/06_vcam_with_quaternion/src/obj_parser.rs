@@ -81,9 +81,10 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
     for line in reader.lines().map(|st| st.unwrap()) {
         // Vertex
         let bytes = line.as_bytes();
-        if bytes[0] == b'v' {
+        let i = skip_spaces(bytes);
+        if bytes[i] == b'v' {
             // Vertex point.
-            if bytes[1] == b' ' {
+            if bytes[i+1] == b' ' {
                 let (x, y, z) = scan_fmt!(&line, "v {} {} {}", f32, f32, f32);
                 unsorted_vp_array[current_unsorted_vp * 3]     = x.unwrap();
                 unsorted_vp_array[current_unsorted_vp * 3 + 1] = y.unwrap();
@@ -91,14 +92,14 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
                 current_unsorted_vp += 1;
 
             // Vertex texture coordinate.
-            } else if bytes[1] == b't' {
+            } else if bytes[i+1] == b't' {
                 let (s, t) = scan_fmt!(&line, "vt {} {}", f32, f32);
                 unsorted_vt_array[current_unsorted_vt * 2]     = s.unwrap();
                 unsorted_vt_array[current_unsorted_vt * 2 + 1] = t.unwrap();
                 current_unsorted_vt += 1;
 
             // Vertex normal.
-            } else if bytes[1] == b'n' {
+            } else if bytes[i+1] == b'n' {
                 let (x, y, z) = scan_fmt!(&line, "vn {} {} {}", f32, f32, f32);
                 unsorted_vn_array[current_unsorted_vn * 3]     = x.unwrap();
                 unsorted_vn_array[current_unsorted_vn * 3 + 1] = y.unwrap();
@@ -107,11 +108,11 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
             }
 
         // Faces
-        } else if bytes[0] == b'f' {
+        } else if bytes[i] == b'f' {
             // work out if using quads instead of triangles and print a warning
             let mut slash_count = 0;
-            for i in 0..bytes.len() {
-                if bytes[i] == b'/' {
+            for j in i..bytes.len() {
+                if bytes[j] == b'/' {
                     slash_count += 1;
                 }
             }
@@ -137,30 +138,30 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
             // Start reading points into a buffer. order is -1 because 
             // obj starts from 1, not 0.
             // NB: assuming all indices are valid
-            for i in 0..3 {
-                if (vp[i] - 1 < 0 ) || (vp[i] - 1 >= unsorted_vp_count) {
+            for j in 0..3 {
+                if (vp[j] - 1 < 0 ) || (vp[j] - 1 >= unsorted_vp_count) {
                     eprintln!("ERROR: invalid vertex position index in face");
                     panic!();
                 }
-                if (vt[i] - 1 < 0) || (vt[i] - 1 >= unsorted_vt_count) {
+                if (vt[j] - 1 < 0) || (vt[j] - 1 >= unsorted_vt_count) {
                     eprintln!("ERROR: invalid texture coord index {} in face.", vt[i]);
                     panic!();
                 }
-                if (vn[i] - 1 < 0) || (vn[i] - 1 >= unsorted_vn_count) {
+                if (vn[j] - 1 < 0) || (vn[j] - 1 >= unsorted_vn_count) {
                     println!("ERROR: invalid vertex normal index in face");
                     panic!();
                 }
 
-                points.push(unsorted_vp_array[(vp[i] - 1) * 3]);
-                points.push(unsorted_vp_array[(vp[i] - 1) * 3 + 1]);
-                points.push(unsorted_vp_array[(vp[i] - 1) * 3 + 2]);
+                points.push(unsorted_vp_array[(vp[j] - 1) * 3]);
+                points.push(unsorted_vp_array[(vp[j] - 1) * 3 + 1]);
+                points.push(unsorted_vp_array[(vp[j] - 1) * 3 + 2]);
                 
-                tex_coords.push(unsorted_vt_array[(vt[i] - 1) * 2]);
-                tex_coords.push(unsorted_vt_array[(vt[i] - 1) * 2 + 1]);
+                tex_coords.push(unsorted_vt_array[(vt[j] - 1) * 2]);
+                tex_coords.push(unsorted_vt_array[(vt[j] - 1) * 2 + 1]);
                 
-                normals.push(unsorted_vn_array[(vn[i] - 1) * 3]);
-                normals.push(unsorted_vn_array[(vn[i] - 1) * 3 + 1]);
-                normals.push(unsorted_vn_array[(vn[i] - 1) * 3 + 2]);
+                normals.push(unsorted_vn_array[(vn[j] - 1) * 3]);
+                normals.push(unsorted_vn_array[(vn[j] - 1) * 3 + 1]);
+                normals.push(unsorted_vn_array[(vn[j] - 1) * 3 + 2]);
                 
                 point_count += 1;
             }
