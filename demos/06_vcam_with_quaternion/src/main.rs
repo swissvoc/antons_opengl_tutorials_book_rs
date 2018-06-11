@@ -189,8 +189,7 @@ fn main() {
         gl::ClearColor(0.2, 0.2, 0.2, 1.0); // grey background to help spot mistakes
         gl::Viewport(0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32);
 
-        /*-------------------------------RENDERING
-        * LOOP-------------------------------*/
+        // Rendering loop.
         while !g_window.should_close() {
             // Update timers.
             let current_seconds = glfw.get_time();
