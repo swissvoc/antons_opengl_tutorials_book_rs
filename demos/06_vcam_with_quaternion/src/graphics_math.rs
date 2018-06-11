@@ -1344,6 +1344,17 @@ mod met4_tests {
     }
 
     #[test]
+    fn test_zero_times_mat_equals_zero() {
+        for test in test_cases().iter() {
+            let zero_times_a_mat = Mat4::zero() * test.a_mat;
+            let zero_times_b_mat = Mat4::zero() * test.b_mat;
+
+            assert_eq!(zero_times_a_mat, Mat4::zero());
+            assert_eq!(zero_times_b_mat, Mat4::zero());
+        }
+    }
+
+    #[test]
     fn test_mat_times_identity_equals_identity_times_mat() {
         for test in test_cases().iter() {
             let a_mat_times_identity = test.a_mat * Mat4::identity();
