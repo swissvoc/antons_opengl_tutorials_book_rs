@@ -10,7 +10,7 @@ pub const M_PI: f32 = 3.14159265358979323846264338327950288;
 pub const TAU: f32 = 2.0 * M_PI;
 pub const ONE_DEG_IN_RAD: f32 = (2.0 * M_PI) / 360.0; // == 0.017444444
 pub const ONE_RAD_IN_DEG: f32 = 360.0 / (2.0 * M_PI); // == 57.2957795
-pub const EPSILON: f32 = 0.000001; 
+pub const EPSILON: f32 = 0.00001; 
 
 
 #[derive(Copy, Clone, Debug)]
@@ -977,6 +977,17 @@ impl ops::Mul<Mat4> for Mat4 {
     }
 }
 
+impl cmp::PartialEq for Mat4 {
+    fn eq(&self, other: &Mat4) -> bool {
+        for i in 0..self.m.len() {
+            if f32::abs(self.m[i] - other.m[i]) > EPSILON {
+                return false;
+            }
+        }
+
+        true
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 struct Versor {
