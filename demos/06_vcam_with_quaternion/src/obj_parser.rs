@@ -51,26 +51,26 @@ fn count_vertices<T: BufRead + Seek>(reader: &mut T) -> (usize, usize, usize, us
     (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count)
 }
 
+fn parse_vtn() {
+
+}
+
+fn parse_vn() {
+
+}
+
 pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
+    // First, we count the number points in the file so we know how much 
+    // memory to allocate.
+    let (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count) = count_vertices(reader);
+    
     let mut current_unsorted_vp = 0;
     let mut current_unsorted_vt = 0;
     let mut current_unsorted_vn = 0;
 
-    // First count points in file so we know how much mem to allocate.
-    let (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count) = count_vertices(reader);
-
-    println!(
-        "Found {} vp {} vt {} vn unique in obj. allocating memory...",
-        unsorted_vp_count, unsorted_vt_count, unsorted_vn_count
-    );
-
-    println!("Found {} Faces.", face_count);
-
     let mut unsorted_vp_array = vec![0.0; 3 * unsorted_vp_count];
     let mut unsorted_vt_array = vec![0.0; 2 * unsorted_vt_count];
     let mut unsorted_vn_array = vec![0.0; 3 * unsorted_vn_count];
-
-    println!("Allocated {} bytes for mesh", 3 * face_count * 8 * mem::size_of::<f32>());
 
     let mut points     = vec![];
     let mut tex_coords = vec![];
@@ -84,7 +84,7 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
         let i = skip_spaces(bytes);
         if bytes[i] == b'v' {
             // Vertex point.
-            if bytes[i+1] == b' ' {
+            if bytes[i + 1] == b' ' {
                 let (x, y, z) = scan_fmt!(&line, "v {} {} {}", f32, f32, f32);
                 unsorted_vp_array[current_unsorted_vp * 3]     = x.unwrap();
                 unsorted_vp_array[current_unsorted_vp * 3 + 1] = y.unwrap();
@@ -92,14 +92,14 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
                 current_unsorted_vp += 1;
 
             // Vertex texture coordinate.
-            } else if bytes[i+1] == b't' {
+            } else if bytes[i + 1] == b't' {
                 let (s, t) = scan_fmt!(&line, "vt {} {}", f32, f32);
                 unsorted_vt_array[current_unsorted_vt * 2]     = s.unwrap();
                 unsorted_vt_array[current_unsorted_vt * 2 + 1] = t.unwrap();
                 current_unsorted_vt += 1;
 
             // Vertex normal.
-            } else if bytes[i+1] == b'n' {
+            } else if bytes[i + 1] == b'n' {
                 let (x, y, z) = scan_fmt!(&line, "vn {} {} {}", f32, f32, f32);
                 unsorted_vn_array[current_unsorted_vn * 3]     = x.unwrap();
                 unsorted_vn_array[current_unsorted_vn * 3 + 1] = y.unwrap();
@@ -126,6 +126,7 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
                 panic!()
             }
 
+            // First, try parsing the line as though there are texture vertices.
             let (vp0, vt0, vn0, vp1, vt1, vn1, vp2, vt2, vn2) = scan_fmt!(
                 &line, "f {}/{}/{} {}/{}/{} {}/{}/{}", 
                 usize, usize, usize, usize, usize, usize, usize, usize, usize
