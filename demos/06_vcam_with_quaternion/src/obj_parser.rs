@@ -49,6 +49,8 @@ fn count_vertices<T: BufRead + Seek>(reader: &mut T) -> (usize, usize, usize, us
         }
     }
 
+    reader.seek(SeekFrom::Start(0)).unwrap();
+
     (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count)
 }
 
@@ -78,7 +80,6 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
     let mut normals    = vec![];
     let mut point_count = 0;
 
-    reader.seek(SeekFrom::Start(0)).unwrap();
     for line in reader.lines().map(|st| st.unwrap()) {
         // Vertex
         let bytes = line.as_bytes();
