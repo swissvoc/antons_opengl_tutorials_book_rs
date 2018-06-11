@@ -109,7 +109,7 @@ fn main() {
     let vp = mesh.points;     // array of vertex points
     let vt = mesh.tex_coords; // array of vertex normals
     let vn = mesh.normals;    // array of texture coordinates
-    let point_count = mesh.points_count;
+    let point_count = mesh.point_count;
 
     let mut vao = 0;
     unsafe {

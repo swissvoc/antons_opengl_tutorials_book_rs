@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io;
-use std::io::{BufRead, BufReader};
+use std::io::{Seek, SeekFrom, BufRead, BufReader};
 use std::mem;
 
 
@@ -12,36 +12,59 @@ pub struct ObjMesh {
     pub normals: Vec<f32>,
 }
 
-pub fn load_obj_mesh<T: BufRead>(handle: &mut T) -> io::Result<ObjMesh> {
-    let mut current_unsorted_vp = 0;
-    let mut current_unsorted_vt = 0;
-    let mut current_unsorted_vn = 0;
 
-    // First count points in file so we know how much mem to allocate.
+fn skip_spaces(bytes: &[u8]) -> usize {
+    let mut index = 0;
+    while index < bytes.len() - 1 { 
+        if bytes[index] == b' ' || bytes[index] == b'\\' {
+            index += 1;
+        } else {
+            break;
+        }
+    }
+
+    index
+}
+
+fn count_vertices<T: BufRead + Seek>(reader: &mut T) -> (usize, usize, usize, usize) {
     let mut unsorted_vp_count = 0;
     let mut unsorted_vt_count = 0;
     let mut unsorted_vn_count = 0;
     let mut face_count = 0;
 
-    for line in handle.lines().map(|st| st.unwrap()) {
+    for line in reader.lines().map(|st| st.unwrap()) {
         let bytes = line.as_bytes();
-        if bytes[0] == b'v' {
-            if bytes[1] == b' ' {
+        let i = skip_spaces(bytes);
+        if bytes[i] == b'v' {
+            if bytes[i+1] == b' ' {
                 unsorted_vp_count += 1;
-            } else if bytes[1] == b't' {
+            } else if bytes[i+1] == b't' {
                 unsorted_vt_count += 1;
-            } else if bytes[1] == b'n' {
+            } else if bytes[i+1] == b'n' {
                 unsorted_vn_count += 1;
             }
-        } else if bytes[0] == b'f' {
+        } else if bytes[i] == b'f' {
             face_count += 1;
         }
     }
+
+    (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count)
+}
+
+pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
+    let mut current_unsorted_vp = 0;
+    let mut current_unsorted_vt = 0;
+    let mut current_unsorted_vn = 0;
+
+    // First count points in file so we know how much mem to allocate.
+    let (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count) = count_vertices(reader);
 
     println!(
         "Found {} vp {} vt {} vn unique in obj. allocating memory...",
         unsorted_vp_count, unsorted_vt_count, unsorted_vn_count
     );
+
+    println!("Found {} Faces.", face_count);
 
     let mut unsorted_vp_array = vec![0.0; 3 * unsorted_vp_count];
     let mut unsorted_vt_array = vec![0.0; 2 * unsorted_vt_count];
@@ -54,10 +77,10 @@ pub fn load_obj_mesh<T: BufRead>(handle: &mut T) -> io::Result<ObjMesh> {
     let mut normals    = vec![];
     let mut point_count = 0;
 
-    let file = File::open(file_name).unwrap();
-    let reader = BufReader::new(file);
+    reader.seek(SeekFrom::Start(0)).unwrap();
     for line in reader.lines().map(|st| st.unwrap()) {
         // Vertex
+        println!("line = \"{}\"", line);
         let bytes = line.as_bytes();
         if bytes[0] == b'v' {
             // Vertex point.
@@ -170,7 +193,7 @@ pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
 
 mod parser_tests {
     use super::ObjMesh;
-    use std::io::BufReader;
+    use std::io::{BufReader, Cursor};
 
     struct Test {
         obj_file: String,
@@ -178,7 +201,7 @@ mod parser_tests {
     }
 
     fn test() -> Test {
-        let obj_file = String::from("         \
+        let obj_file = String::from(r"        \
             o object1                         \
             g cube                            \
             v  0.0  0.0  0.0                  \
@@ -247,7 +270,9 @@ mod parser_tests {
     #[test]
     fn test_parse_obj_mesh() {
         let test = test();
-        let result = super::load_obj_mesh(&mut BufReader::new(test.obj_file.as_bytes())).unwrap();
+        let result = super::load_obj_mesh(
+            &mut BufReader::new(Cursor::new(test.obj_file.as_bytes()))
+        ).unwrap();
         let expected = test.obj_mesh;
 
         assert_eq!(result, expected);
