@@ -61,6 +61,7 @@ fn main() {
         }
     }
     /*-------------------------------CREATE SHADERS-------------------------------*/
+    // FIXME: Why don't the gl::GetUniformLocation calls fetch the resources when the functions are called?
     let shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
     let model_mat_location = unsafe { gl::GetUniformLocation( shader_programme, "model".as_ptr() as *const i8) };
     assert!(model_mat_location != -1);
@@ -68,8 +69,9 @@ fn main() {
     assert!(view_mat_location != -1);
     let proj_mat_location  = unsafe { gl::GetUniformLocation( shader_programme, "proj".as_ptr() as *const i8) };
     assert!(proj_mat_location != -1);
+    
     /*-------------------------------CREATE CAMERA--------------------------------*/
-    // input variables
+    // Input variables
     let near = 0.1;                                                 // Near clipping plane
     let far = 100.0;                                                // Far clipping plane
     let fovy = 67.0;                                                // 67 degrees
@@ -302,8 +304,8 @@ fn main() {
                 //  printf ("dot fwd . rgt\n %f", dot (fwd, rgt));
 
                 cam_pos = cam_pos + math::vec3(fwd) * -move_to.v[2];
-                cam_pos = cam_pos + math::vec3(up) * move_to.v[1];
-                cam_pos = cam_pos + math::vec3(rgt) * move_to.v[0];
+                cam_pos = cam_pos + math::vec3(up)  *  move_to.v[1];
+                cam_pos = cam_pos + math::vec3(rgt) *  move_to.v[0];
                 mat_trans = Mat4::translate(&Mat4::identity(), &math::vec3(cam_pos));
 
                 view_mat = mat_rot.inverse() * mat_trans.inverse();
