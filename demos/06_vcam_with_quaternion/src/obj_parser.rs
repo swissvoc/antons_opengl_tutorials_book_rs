@@ -231,7 +231,7 @@ fn parse_vn(
 pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> Result<ObjMesh, String> {
     // First, we count the number of vertices, texture vertices, normal vectors, and faces 
     // in the file so we know how much memory to allocate.
-    let (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count) = count_vertices(reader);
+    let (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, _) = count_vertices(reader);
 
     let mut unsorted_vtn = UnsortedVertexData {
         vp: vec![0.0; 3 * unsorted_vp_count],
@@ -248,7 +248,6 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> Result<ObjMesh, Strin
     let mut current_unsorted_vp = 0;
     let mut current_unsorted_vt = 0;
     let mut current_unsorted_vn = 0;
-    let mut point_count = 0;
 
     for line in reader.lines().map(|st| st.unwrap()) {
         let bytes = line.as_bytes();
