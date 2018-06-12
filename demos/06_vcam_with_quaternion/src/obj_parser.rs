@@ -180,26 +180,30 @@ fn parse_vtn(
     Ok(())
 }
 
-fn parse_vn() -> bool {
-    false
+fn parse_vn() -> Result<(), String> {
+    unimplemented!()
 }
 
-pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
+pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> Result<ObjMesh, String> {
     // First, we count the number of vertices, texture vertices, normal vectors, and faces 
     // in the file so we know how much memory to allocate.
     let (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count) = count_vertices(reader);
 
+    let mut unsorted_vtn = UnsortedVertexData {
+        vp: vec![0.0; 3 * unsorted_vp_count],
+        vt: vec![0.0; 2 * unsorted_vt_count],
+        vn: vec![0.0; 3 * unsorted_vn_count],
+    };
+
+    let mut sorted_vtn = SortedVertexData {
+        points: vec![],
+        tex_coords: vec![],
+        normals: vec![]
+    };
+
     let mut current_unsorted_vp = 0;
     let mut current_unsorted_vt = 0;
     let mut current_unsorted_vn = 0;
-
-    let mut unsorted_vp_array = vec![0.0; 3 * unsorted_vp_count];
-    let mut unsorted_vt_array = vec![0.0; 2 * unsorted_vt_count];
-    let mut unsorted_vn_array = vec![0.0; 3 * unsorted_vn_count];
-
-    let mut points     = vec![];
-    let mut tex_coords = vec![];
-    let mut normals    = vec![];
     let mut point_count = 0;
 
     for line in reader.lines().map(|st| st.unwrap()) {
@@ -210,24 +214,24 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
             // Vertex point.
             if bytes[i + 1] == b' ' {
                 let (x, y, z) = scan_fmt!(&line, "v {} {} {}", f32, f32, f32);
-                unsorted_vp_array[current_unsorted_vp * 3]     = x.unwrap();
-                unsorted_vp_array[current_unsorted_vp * 3 + 1] = y.unwrap();
-                unsorted_vp_array[current_unsorted_vp * 3 + 2] = z.unwrap();
+                unsorted_vtn.vp[current_unsorted_vp * 3]     = x.unwrap();
+                unsorted_vtn.vp[current_unsorted_vp * 3 + 1] = y.unwrap();
+                unsorted_vtn.vp[current_unsorted_vp * 3 + 2] = z.unwrap();
                 current_unsorted_vp += 1;
 
             // Vertex texture coordinate.
             } else if bytes[i + 1] == b't' {
                 let (s, t) = scan_fmt!(&line, "vt {} {}", f32, f32);
-                unsorted_vt_array[current_unsorted_vt * 2]     = s.unwrap();
-                unsorted_vt_array[current_unsorted_vt * 2 + 1] = t.unwrap();
+                unsorted_vtn.vt[current_unsorted_vt * 2]     = s.unwrap();
+                unsorted_vtn.vt[current_unsorted_vt * 2 + 1] = t.unwrap();
                 current_unsorted_vt += 1;
 
             // Vertex normal.
             } else if bytes[i + 1] == b'n' {
                 let (x, y, z) = scan_fmt!(&line, "vn {} {} {}", f32, f32, f32);
-                unsorted_vn_array[current_unsorted_vn * 3]     = x.unwrap();
-                unsorted_vn_array[current_unsorted_vn * 3 + 1] = y.unwrap();
-                unsorted_vn_array[current_unsorted_vn * 3 + 2] = z.unwrap();
+                unsorted_vtn.vn[current_unsorted_vn * 3]     = x.unwrap();
+                unsorted_vtn.vn[current_unsorted_vn * 3 + 1] = y.unwrap();
+                unsorted_vtn.vn[current_unsorted_vn * 3 + 2] = z.unwrap();
                 current_unsorted_vn += 1;
             }
 
@@ -250,22 +254,28 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
                 panic!()
             }
 
-            let result = parse_vtn();
-            if !result {
-                parse_vn();
+            let result = parse_vtn(&line, &mut unsorted_vtn, &mut sorted_vtn);
+            if result.is_err() {
+                let result = parse_vn();
+                if result.is_err() {
+                    return Err(format!(
+                        "ERROR: This file contains a face element that is neither
+                         a vp/vt/vn index or a vp//vn index. Got line \"{}\"",
+                         line
+                    ));
+                }
             }
         }
     }
     
-    Ok(ObjMesh::new(points, tex_coords, normals))
+    Ok(ObjMesh::new(sorted_vtn.points, sorted_vtn.tex_coords, sorted_vtn.normals))
 }
 
-pub fn load_obj_file(file_name: &str) -> io::Result<ObjMesh> {
+pub fn load_obj_file(file_name: &str) -> Result<ObjMesh, String> {
     let file = match File::open(file_name) {
         Ok(handle) => handle,
-        Err(e) => {
-            eprintln!("ERROR: could not find file {}", file_name);
-            return Err(e);
+        Err(_) => {
+            return Err(format!("ERROR: file not found: {}", file_name));
         }
     };
 
