@@ -132,8 +132,11 @@ fn main() {
      * SHADERS-------------------------------*/
     let shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
     let model_mat_location = unsafe { gl::GetUniformLocation( shader_programme, "model".as_ptr() as *const i8) };
+    assert!(model_mat_location != -1);
     let view_mat_location  = unsafe { gl::GetUniformLocation( shader_programme, "view".as_ptr() as *const i8) };
+    assert!(view_mat_location != -1);
     let proj_mat_location  = unsafe { gl::GetUniformLocation( shader_programme, "proj".as_ptr() as *const i8) };
+    assert!(proj_mat_location != -1);
     /*-------------------------------CREATE CAMERA--------------------------------*/
     // input variables
     let near = 0.1;                                                 // Near clipping plane
