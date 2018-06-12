@@ -71,13 +71,6 @@ struct SortedVertexData {
     normals: Vec<f32>,
 }
 
-struct FaceData {
-    points: Vec<u32>,
-    tex_coords: Vec<u32>,
-    normals: Vec<u32>,
-}
-
-
 fn skip_spaces(bytes: &[u8]) -> usize {
     let mut index = 0;
     while index < bytes.len() - 1 { 
