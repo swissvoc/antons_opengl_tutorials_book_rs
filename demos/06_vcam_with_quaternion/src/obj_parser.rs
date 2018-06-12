@@ -180,7 +180,10 @@ fn parse_vtn(
     Ok(())
 }
 
-fn parse_vn() -> Result<(), String> {
+fn parse_vn(
+    line: &str, 
+    unsorted_vtn: &mut UnsortedVertexData, sorted_vtn: &mut SortedVertexData) -> Result<(), String> {
+    
     unimplemented!()
 }
 
@@ -256,7 +259,7 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> Result<ObjMesh, Strin
 
             let result = parse_vtn(&line, &mut unsorted_vtn, &mut sorted_vtn);
             if result.is_err() {
-                let result = parse_vn();
+                let result = parse_vn(&line, &mut unsorted_vtn, &mut sorted_vtn);
                 if result.is_err() {
                     return Err(format!(
                         "ERROR: This file contains a face element that is neither
