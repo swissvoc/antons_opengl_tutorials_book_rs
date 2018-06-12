@@ -253,36 +253,33 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> Result<ObjMesh, Strin
     let mut point_count = 0;
 
     for line in reader.lines().map(|st| st.unwrap()) {
-        // Vertex
         let bytes = line.as_bytes();
         let i = skip_spaces(bytes);
         if bytes[i] == b'v' {
-            // Vertex point.
+            // Vertex line.
             if bytes[i + 1] == b' ' {
+                // Vertex point.
                 let (x, y, z) = scan_fmt!(&line, "v {} {} {}", f32, f32, f32);
                 unsorted_vtn.vp[current_unsorted_vp * 3]     = x.unwrap();
                 unsorted_vtn.vp[current_unsorted_vp * 3 + 1] = y.unwrap();
                 unsorted_vtn.vp[current_unsorted_vp * 3 + 2] = z.unwrap();
                 current_unsorted_vp += 1;
-
-            // Vertex texture coordinate.
             } else if bytes[i + 1] == b't' {
+                // Vertex texture coordinate.
                 let (s, t) = scan_fmt!(&line, "vt {} {}", f32, f32);
                 unsorted_vtn.vt[current_unsorted_vt * 2]     = s.unwrap();
                 unsorted_vtn.vt[current_unsorted_vt * 2 + 1] = t.unwrap();
                 current_unsorted_vt += 1;
-
-            // Vertex normal.
             } else if bytes[i + 1] == b'n' {
+                // Vertex normal coordinate.
                 let (x, y, z) = scan_fmt!(&line, "vn {} {} {}", f32, f32, f32);
                 unsorted_vtn.vn[current_unsorted_vn * 3]     = x.unwrap();
                 unsorted_vtn.vn[current_unsorted_vn * 3 + 1] = y.unwrap();
                 unsorted_vtn.vn[current_unsorted_vn * 3 + 2] = z.unwrap();
                 current_unsorted_vn += 1;
             }
-
-        // Faces
         } else if bytes[i] == b'f' {
+            // Face line.
             // work out if using quads instead of triangles and print a warning
             let mut slash_count = 0;
             for j in i..bytes.len() {
@@ -291,13 +288,11 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> Result<ObjMesh, Strin
                 }
             }
             if slash_count != 6 {
-                eprintln!(
+                return Err(format!(
                     "ERROR: file contains quads or does not match v vp/vt/vn layout - 
                      make sure exported mesh is triangulated and contains vertex points, 
                      texture coordinates, and normals"
-                );
-                
-                panic!()
+                ));
             }
 
             let result = parse_vtn(&line, &mut unsorted_vtn, &mut sorted_vtn);
