@@ -5,7 +5,6 @@ extern crate chrono;
 #[macro_use] 
 extern crate scan_fmt;
 
-
 mod gl_utils;
 mod graphics_math;
 mod obj_parser;
@@ -103,8 +102,7 @@ fn main() {
     // Start GL context and O/S window using the GLFW helper library
     let (mut glfw, mut g_window, _g_events) = start_gl().unwrap();
 
-    /*------------------------------CREATE
-     * GEOMETRY-------------------------------*/
+    /*------------------------------CREATE GEOMETRY-------------------------------*/
     let mesh = obj_parser::load_obj_file(MESH_FILE).unwrap();
     let vp = mesh.points;     // array of vertex points
     let vt = mesh.tex_coords; // array of vertex normals
@@ -128,8 +126,7 @@ fn main() {
             gl::EnableVertexAttribArray(0);
         }
     }
-    /*-------------------------------CREATE
-     * SHADERS-------------------------------*/
+    /*-------------------------------CREATE SHADERS-------------------------------*/
     let shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
     let model_mat_location = unsafe { gl::GetUniformLocation( shader_programme, "model".as_ptr() as *const i8) };
     assert!(model_mat_location != -1);
@@ -153,11 +150,8 @@ fn main() {
     // Rotation matrix from my maths library. just holds 16 floats
     let mut mat_rot = Mat4::zero();
     // make a quaternion representing negated initial camera orientation
-    //let mut quaternion = [0.0; 4];
-    //create_versor(&mut quaternion, -cam_heading, 0.0, 1.0, 0.0);
     let mut quaternion = Versor::from_axis_deg(-cam_heading, 0.0, 1.0, 0.0);
     // convert the quaternion to a rotation matrix (just an array of 16 floats)
-    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
     quaternion.to_mut_mat4(&mut mat_rot);
 
     // combine the inverse rotation and transformation to make a view matrix
@@ -167,8 +161,7 @@ fn main() {
     let mut rgt = math::vec4((1.0, 0.0, 0.0, 0.0));
     let mut up  = math::vec4((0.0, 1.0, 0.0, 0.0));
 
-    /*---------------------------SET RENDERING
-     * DEFAULTS---------------------------*/
+    /*---------------------------SET RENDERING DEFAULTS---------------------------*/
     unsafe {
         gl::UseProgram(shader_programme);
         gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
@@ -268,17 +261,12 @@ fn main() {
                     cam_yaw += (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
 
-                    // create a quaternion representing change in heading (the yaw)
-                    //let mut q_yaw = [0.0; 4];
-                    //create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
+                    // Create a quaternion representing change in heading (the yaw).
                     let mut q_yaw = Versor::from_axis_deg(cam_yaw, up.v[0], up.v[1], up.v[2]);
                     // add yaw rotation to the camera's current orientation
-                    //let quaternion_copy = quaternion.clone();
-                    //mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
                     quaternion = q_yaw * &quaternion;
 
                     // recalc axes to suit new orientation
-                    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
                     quaternion.to_mut_mat4(&mut mat_rot);
 
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
@@ -291,15 +279,11 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_yaw -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    //let mut q_yaw = [0.0; 4];
-                    //create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
-                    //let quaternion_copy = quaternion.clone();
-                    //mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
+
                     let mut q_yaw = Versor::from_axis_deg(cam_yaw, up.v[0], up.v[1], up.v[2]);
                     quaternion = q_yaw * &quaternion;
 
                     // Recalculate axes to suit new orientation.
-                    // quat_to_mat4(mat_rot.as_mut(), &quaternion);
                     quaternion.to_mut_mat4(&mut mat_rot);
 
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
@@ -312,15 +296,11 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_pitch += (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    //let mut q_pitch = [0.0; 4];
-                    //create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
+
                     let mut q_pitch = Versor::from_axis_deg(cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
-                    //let quaternion_copy = quaternion.clone();
-                    //mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
                     quaternion = q_pitch * &quaternion;
 
                     // Recalculate axes to suit new orientation.
-                    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
                     quaternion.to_mut_mat4(&mut mat_rot);
 
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
@@ -333,15 +313,11 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_pitch -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    //let mut q_pitch = [0.0; 4];
-                    //create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
+
                     let mut q_pitch = Versor::from_axis_deg(cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
-                    //let quaternion_copy = quaternion.clone();
-                    //mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
                     quaternion = q_pitch * &quaternion;
 
                     // recalc axes to suit new orientation
-                    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
                     quaternion.to_mut_mat4(&mut mat_rot);
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
                     rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
@@ -353,15 +329,11 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_roll -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    //let mut q_roll = [0.0; 4];
-                    //create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
+
                     let mut q_roll = Versor::from_axis_deg(cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
-                    //let quaternion_copy = quaternion.clone();
-                    //mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
                     quaternion = q_roll * &quaternion;
 
                     // Recalculate axes to suit new orientation.
-                    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
                     quaternion.to_mut_mat4(&mut mat_rot);
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
                     rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
@@ -373,11 +345,8 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_roll += (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    //let mut q_roll = [0.0; 4];
-                    //create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
+
                     let mut q_roll = Versor::from_axis_deg(cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
-                    //let quaternion_copy = quaternion.clone();
-                    //mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
                     quaternion = q_roll * &quaternion;
 
                     // recalc axes to suit new orientation
@@ -391,7 +360,6 @@ fn main() {
 
             // Update view matrix
             if cam_moved {
-                //quat_to_mat4(mat_rot.as_mut(), &quaternion);
                 quaternion.to_mut_mat4(&mut mat_rot);
 
                 // checking for fp errors
