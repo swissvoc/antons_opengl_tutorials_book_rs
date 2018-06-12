@@ -1043,7 +1043,7 @@ impl cmp::PartialEq for Mat4 {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Versor {
+pub struct Versor {
     q: [f32; 4],
 }
 
@@ -1094,6 +1094,29 @@ impl Versor {
             2.0 * x * z + 2.0 * w * y,       2.0 * y * z - 2.0 * w * x,       1.0 - 2.0 * x * x - 2.0 * y * y, 0.0, 
             0.0,                             0.0,                             0.0,                             1.0
         )
+    }
+
+    pub fn to_mut_mat4(&self, m: &mut Mat4) {
+        let w = self.q[0];
+        let x = self.q[1];
+        let y = self.q[2];
+        let z = self.q[3];
+        m.m[0] = 1.0 - 2.0 * y * y - 2.0 * z * z;
+        m.m[1] = 2.0 * x * y + 2.0 * w * z;
+        m.m[2] = 2.0 * x * z - 2.0 * w * y;
+        m.m[3] = 0.0;
+        m.m[4] = 2.0 * x * y - 2.0 * w * z;
+        m.m[5] = 1.0 - 2.0 * x * x - 2.0 * z * z;
+        m.m[6] = 2.0 * y * z + 2.0 * w * x;
+        m.m[7] = 0.0;
+        m.m[8] = 2.0 * x * z + 2.0 * w * y;
+        m.m[9] = 2.0 * y * z - 2.0 * w * x;
+        m.m[10] = 1.0 - 2.0 * x * x - 2.0 * y * y;
+        m.m[11] = 0.0;
+        m.m[12] = 0.0;
+        m.m[13] = 0.0;
+        m.m[14] = 0.0;
+        m.m[15] = 1.0;
     }
 
     pub fn slerp(q: &mut Versor, r: &Versor, t: f32) -> Versor {

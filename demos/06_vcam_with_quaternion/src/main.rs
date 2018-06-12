@@ -20,7 +20,7 @@ use std::ptr;
 use gl_utils::*;
 
 use graphics_math as math;
-use math::{Mat4};
+use math::{Mat4, Versor};
 
 
 const MESH_FILE: &str = "src/sphere.obj";
@@ -153,10 +153,13 @@ fn main() {
     // Rotation matrix from my maths library. just holds 16 floats
     let mut mat_rot = Mat4::zero();
     // make a quaternion representing negated initial camera orientation
-    let mut quaternion = [0.0; 4];
-    create_versor(&mut quaternion, -cam_heading, 0.0, 1.0, 0.0);
+    //let mut quaternion = [0.0; 4];
+    //create_versor(&mut quaternion, -cam_heading, 0.0, 1.0, 0.0);
+    let mut quaternion = Versor::from_axis_deg(-cam_heading, 0.0, 1.0, 0.0);
     // convert the quaternion to a rotation matrix (just an array of 16 floats)
-    quat_to_mat4(mat_rot.as_mut(), &quaternion);
+    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
+    quaternion.to_mut_mat4(&mut mat_rot);
+
     // combine the inverse rotation and transformation to make a view matrix
     let mut view_mat = mat_rot * mat_trans;
     // keep track of some useful vectors that can be used for keyboard movement
@@ -266,14 +269,18 @@ fn main() {
                     cam_moved = true;
 
                     // create a quaternion representing change in heading (the yaw)
-                    let mut q_yaw = [0.0; 4];
-                    create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
+                    //let mut q_yaw = [0.0; 4];
+                    //create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
+                    let mut q_yaw = Versor::from_axis_deg(cam_yaw, up.v[0], up.v[1], up.v[2]);
                     // add yaw rotation to the camera's current orientation
-                    let quaternion_copy = quaternion.clone();
-                    mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
+                    //let quaternion_copy = quaternion.clone();
+                    //mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
+                    quaternion = q_yaw * &quaternion;
 
                     // recalc axes to suit new orientation
-                    quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    quaternion.to_mut_mat4(&mut mat_rot);
+
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
                     rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
                     up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
@@ -284,13 +291,17 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_yaw -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    let mut q_yaw = [0.0; 4];
-                    create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
-                    let quaternion_copy = quaternion.clone();
-                    mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
+                    //let mut q_yaw = [0.0; 4];
+                    //create_versor(&mut q_yaw, cam_yaw, up.v[0], up.v[1], up.v[2]);
+                    //let quaternion_copy = quaternion.clone();
+                    //mult_quat_quat(&mut quaternion, &q_yaw, &quaternion_copy);
+                    let mut q_yaw = Versor::from_axis_deg(cam_yaw, up.v[0], up.v[1], up.v[2]);
+                    quaternion = q_yaw * &quaternion;
 
                     // Recalculate axes to suit new orientation.
-                    quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    // quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    quaternion.to_mut_mat4(&mut mat_rot);
+
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
                     rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
                     up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
@@ -301,16 +312,20 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_pitch += (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    let mut q_pitch = [0.0; 4];
-                    create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
-                    let quaternion_copy = quaternion.clone();
-                    mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
+                    //let mut q_pitch = [0.0; 4];
+                    //create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
+                    let mut q_pitch = Versor::from_axis_deg(cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
+                    //let quaternion_copy = quaternion.clone();
+                    //mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
+                    quaternion = q_pitch * &quaternion;
 
                     // Recalculate axes to suit new orientation.
-                    quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    quaternion.to_mut_mat4(&mut mat_rot);
+
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
                     rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
-                    up = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
+                    up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
                 }
                 _ => {}
             }
@@ -318,13 +333,16 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_pitch -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    let mut q_pitch = [0.0; 4];
-                    create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
-                    let quaternion_copy = quaternion.clone();
-                    mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
-        
+                    //let mut q_pitch = [0.0; 4];
+                    //create_versor(&mut q_pitch, cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
+                    let mut q_pitch = Versor::from_axis_deg(cam_pitch, rgt.v[0], rgt.v[1], rgt.v[2]);
+                    //let quaternion_copy = quaternion.clone();
+                    //mult_quat_quat(&mut quaternion, &q_pitch, &quaternion_copy);
+                    quaternion = q_pitch * &quaternion;
+
                     // recalc axes to suit new orientation
-                    quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    quaternion.to_mut_mat4(&mut mat_rot);
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
                     rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
                     up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
@@ -335,13 +353,16 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_roll -= (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    let mut q_roll = [0.0; 4];
-                    create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
-                    let quaternion_copy = quaternion.clone();
-                    mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
+                    //let mut q_roll = [0.0; 4];
+                    //create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
+                    let mut q_roll = Versor::from_axis_deg(cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
+                    //let quaternion_copy = quaternion.clone();
+                    //mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
+                    quaternion = q_roll * &quaternion;
 
                     // Recalculate axes to suit new orientation.
-                    quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    //quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    quaternion.to_mut_mat4(&mut mat_rot);
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
                     rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
                     up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
@@ -352,23 +373,26 @@ fn main() {
                 Action::Press | Action::Repeat => {
                     cam_roll += (cam_heading_speed as f32) * (elapsed_seconds as f32);
                     cam_moved = true;
-                    let mut q_roll = [0.0; 4];
-                    create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
-                    let quaternion_copy = quaternion.clone();
-                    mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
+                    //let mut q_roll = [0.0; 4];
+                    //create_versor(&mut q_roll, cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
+                    let mut q_roll = Versor::from_axis_deg(cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
+                    //let quaternion_copy = quaternion.clone();
+                    //mult_quat_quat(&mut quaternion, &q_roll, &quaternion_copy);
+                    quaternion = q_roll * &quaternion;
 
                     // recalc axes to suit new orientation
-                    quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                    quaternion.to_mut_mat4(&mut mat_rot);
                     fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
                     rgt = mat_rot * math::vec4((1.0, 0.0, 0.0, 0.0));
-                    up = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
+                    up  = mat_rot * math::vec4((0.0, 1.0, 0.0, 0.0));
                 }
                 _ => {}
             }
 
             // Update view matrix
             if cam_moved {
-                quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                //quat_to_mat4(mat_rot.as_mut(), &quaternion);
+                quaternion.to_mut_mat4(&mut mat_rot);
 
                 // checking for fp errors
                 //  printf ("dot fwd . up %f\n", dot (fwd, up));
