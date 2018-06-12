@@ -180,11 +180,54 @@ fn parse_vtn(
     Ok(())
 }
 
+fn is_valid_vn_triple(
+    tuple: &(Option<u32>, Option<u32>, Option<u32>, 
+             Option<u32>, Option<u32>, Option<u32>)) -> bool {
+
+    tuple.0.is_some() && tuple.1.is_some() && tuple.2.is_some() &&
+    tuple.3.is_some() && tuple.4.is_some() && tuple.5.is_some()
+}
+
 fn parse_vn(
     line: &str, 
     unsorted_vtn: &mut UnsortedVertexData, sorted_vtn: &mut SortedVertexData) -> Result<(), String> {
     
-    unimplemented!()
+    // First, try parsing the line as though there are texture vertices.
+    let tuple = scan_fmt!(
+        line, "f {}//{} {}//{} {}//{}", u32, u32, u32, u32, u32, u32
+    );
+
+    if !is_valid_vn_triple(&tuple) {
+        return Err(format!("Invalid mesh face declaration: \"{}\"", line));
+    }
+
+    let (vp0, vn0, vp1, vn1, vp2, vn2) = tuple;
+    let vp = [vp0.unwrap(), vp1.unwrap(), vp2.unwrap()];
+    let vn = [vn0.unwrap(), vn1.unwrap(), vn2.unwrap()];
+
+    // Start reading points into a buffer. order is -1 because 
+    // obj starts from 1, not 0.
+    // NB: assuming all indices are valid
+    for j in 0..3 {
+        if (vp[j] - 1 < 0) || (vp[j] - 1 >= unsorted_vtn.vp.len() as u32) {
+            return Err(format!("ERROR: invalid vertex position index in face"));
+        }
+        if (vn[j] - 1 < 0) || (vn[j] - 1 >= unsorted_vtn.vn.len() as u32) {
+            return Err(format!("ERROR: invalid vertex normal index in face"));
+        }
+    }
+
+    for j in 0..3 {
+        sorted_vtn.points.push(unsorted_vtn.vp[((vp[j] - 1) * 3) as usize]);
+        sorted_vtn.points.push(unsorted_vtn.vp[((vp[j] - 1) * 3 + 1) as usize]);
+        sorted_vtn.points.push(unsorted_vtn.vp[((vp[j] - 1) * 3 + 2) as usize]);
+               
+        sorted_vtn.normals.push(unsorted_vtn.vn[((vn[j] - 1) * 3) as usize]);
+        sorted_vtn.normals.push(unsorted_vtn.vn[((vn[j] - 1) * 3 + 1) as usize]);
+        sorted_vtn.normals.push(unsorted_vtn.vn[((vn[j] - 1) * 3 + 2) as usize]);
+    }
+
+    Ok(())
 }
 
 pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> Result<ObjMesh, String> {
