@@ -1354,7 +1354,7 @@ mod vec3_tests {
     }
 }
 
-mod met4_tests {
+mod mat4_tests {
     use std::slice::Iter;
     use super::{Vec3, Mat4};
 
