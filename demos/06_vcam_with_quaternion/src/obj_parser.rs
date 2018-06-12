@@ -61,6 +61,24 @@ impl ObjMesh {
     }
 }
 
+struct UnsortedVertexData {
+    vp: Vec<f32>,
+    vt: Vec<f32>,
+    vn: Vec<f32>,
+}
+
+struct SortedVertexData {
+    points: Vec<f32>,
+    tex_coords: Vec<f32>,
+    normals: Vec<f32>,
+}
+
+struct FaceData {
+    points: Vec<u32>,
+    tex_coords: Vec<u32>,
+    normals: Vec<u32>,
+}
+
 
 fn skip_spaces(bytes: &[u8]) -> usize {
     let mut index = 0;
@@ -103,8 +121,63 @@ fn count_vertices<T: BufRead + Seek>(reader: &mut T) -> (usize, usize, usize, us
     (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count)
 }
 
-fn parse_vtn() -> bool {
-    false
+fn is_valid_vtn_triple(
+    tuple: &(Option<u32>, Option<u32>, Option<u32>, 
+             Option<u32>, Option<u32>, Option<u32>, 
+             Option<u32>, Option<u32>, Option<u32>)) -> bool {
+
+    tuple.0.is_some() && tuple.1.is_some() && tuple.2.is_some() &&
+    tuple.3.is_some() && tuple.4.is_some() && tuple.5.is_some() &&
+    tuple.6.is_some() && tuple.7.is_some() && tuple.8.is_some()
+}
+
+fn parse_vtn(
+    line: &str, 
+    unsorted_vtn: &mut UnsortedVertexData, sorted_vtn: &mut SortedVertexData) -> Result<(), String> {
+
+    // First, try parsing the line as though there are texture vertices.
+    let tuple = scan_fmt!(
+        line, "f {}/{}/{} {}/{}/{} {}/{}/{}", u32, u32, u32, u32, u32, u32, u32, u32, u32
+    );
+
+    if !is_valid_vtn_triple(&tuple) {
+        return Err(format!("Invalid mesh face declaration: {}", line));
+    }
+
+    let (vp0, vt0, vn0, vp1, vt1, vn1, vp2, vt2, vn2) = tuple;
+    let vp = [vp0.unwrap(), vp1.unwrap(), vp2.unwrap()];
+    let vt = [vt0.unwrap(), vt1.unwrap(), vt2.unwrap()];
+    let vn = [vn0.unwrap(), vn1.unwrap(), vn2.unwrap()];
+
+    // Start reading points into a buffer. order is -1 because 
+    // obj starts from 1, not 0.
+    // NB: assuming all indices are valid
+    for j in 0..3 {
+        if (vp[j] - 1 < 0) || (vp[j] - 1 >= unsorted_vtn.vp.len() as u32) {
+            return Err(format!("ERROR: invalid vertex position index in face"));
+        }
+        if (vt[j] - 1 < 0) || (vt[j] - 1 >= unsorted_vtn.vt.len() as u32) {
+            return Err(format!("ERROR: invalid texture coord index {} in face.", vt[j]));
+        }
+        if (vn[j] - 1 < 0) || (vn[j] - 1 >= unsorted_vtn.vn.len() as u32) {
+            return Err(format!("ERROR: invalid vertex normal index in face"));
+        }
+    }
+
+    for j in 0..3 {
+        sorted_vtn.points.push(unsorted_vtn.vp[((vp[j] - 1) * 3) as usize]);
+        sorted_vtn.points.push(unsorted_vtn.vp[((vp[j] - 1) * 3 + 1) as usize]);
+        sorted_vtn.points.push(unsorted_vtn.vp[((vp[j] - 1) * 3 + 2) as usize]);
+                
+        sorted_vtn.tex_coords.push(unsorted_vtn.vt[((vt[j] - 1) * 2) as usize]);
+        sorted_vtn.tex_coords.push(unsorted_vtn.vt[((vt[j] - 1) * 2 + 1) as usize]);
+               
+        sorted_vtn.normals.push(unsorted_vtn.vn[((vn[j] - 1) * 3) as usize]);
+        sorted_vtn.normals.push(unsorted_vtn.vn[((vn[j] - 1) * 3 + 1) as usize]);
+        sorted_vtn.normals.push(unsorted_vtn.vn[((vn[j] - 1) * 3 + 2) as usize]);
+    }
+
+    Ok(())
 }
 
 fn parse_vn() -> bool {
@@ -115,7 +188,7 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
     // First, we count the number of vertices, texture vertices, normal vectors, and faces 
     // in the file so we know how much memory to allocate.
     let (unsorted_vp_count, unsorted_vt_count, unsorted_vn_count, face_count) = count_vertices(reader);
-    
+
     let mut current_unsorted_vp = 0;
     let mut current_unsorted_vt = 0;
     let mut current_unsorted_vn = 0;
@@ -177,45 +250,9 @@ pub fn load_obj_mesh<T: BufRead + Seek>(reader: &mut T) -> io::Result<ObjMesh> {
                 panic!()
             }
 
-            // First, try parsing the line as though there are texture vertices.
-            let (vp0, vt0, vn0, vp1, vt1, vn1, vp2, vt2, vn2) = scan_fmt!(
-                &line, "f {}/{}/{} {}/{}/{} {}/{}/{}", 
-                usize, usize, usize, usize, usize, usize, usize, usize, usize
-            );
-
-            let vp = [vp0.unwrap(), vp1.unwrap(), vp2.unwrap()];
-            let vt = [vt0.unwrap(), vt1.unwrap(), vt2.unwrap()];
-            let vn = [vn0.unwrap(), vn1.unwrap(), vn2.unwrap()];
-
-            // Start reading points into a buffer. order is -1 because 
-            // obj starts from 1, not 0.
-            // NB: assuming all indices are valid
-            for j in 0..3 {
-                if (vp[j] - 1 < 0 ) || (vp[j] - 1 >= unsorted_vp_count) {
-                    eprintln!("ERROR: invalid vertex position index in face");
-                    panic!();
-                }
-                if (vt[j] - 1 < 0) || (vt[j] - 1 >= unsorted_vt_count) {
-                    eprintln!("ERROR: invalid texture coord index {} in face.", vt[i]);
-                    panic!();
-                }
-                if (vn[j] - 1 < 0) || (vn[j] - 1 >= unsorted_vn_count) {
-                    println!("ERROR: invalid vertex normal index in face");
-                    panic!();
-                }
-
-                points.push(unsorted_vp_array[(vp[j] - 1) * 3]);
-                points.push(unsorted_vp_array[(vp[j] - 1) * 3 + 1]);
-                points.push(unsorted_vp_array[(vp[j] - 1) * 3 + 2]);
-                
-                tex_coords.push(unsorted_vt_array[(vt[j] - 1) * 2]);
-                tex_coords.push(unsorted_vt_array[(vt[j] - 1) * 2 + 1]);
-                
-                normals.push(unsorted_vn_array[(vn[j] - 1) * 3]);
-                normals.push(unsorted_vn_array[(vn[j] - 1) * 3 + 1]);
-                normals.push(unsorted_vn_array[(vn[j] - 1) * 3 + 2]);
-                
-                point_count += 1;
+            let result = parse_vtn();
+            if !result {
+                parse_vn();
             }
         }
     }
