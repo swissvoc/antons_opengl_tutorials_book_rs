@@ -151,13 +151,13 @@ fn parse_vtn(
     // obj starts from 1, not 0.
     // NB: assuming all indices are valid
     for j in 0..3 {
-        if (vp[j] - 1 < 0) || (vp[j] - 1 >= unsorted_vtn.vp.len() as u32) {
+        if vp[j] - 1 >= unsorted_vtn.vp.len() as u32 {
             return Err(format!("ERROR: invalid vertex position index in face"));
         }
-        if (vt[j] - 1 < 0) || (vt[j] - 1 >= unsorted_vtn.vt.len() as u32) {
+        if vt[j] - 1 >= unsorted_vtn.vt.len() as u32 {
             return Err(format!("ERROR: invalid texture coord index {} in face.", vt[j]));
         }
-        if (vn[j] - 1 < 0) || (vn[j] - 1 >= unsorted_vtn.vn.len() as u32) {
+        if vn[j] - 1 >= unsorted_vtn.vn.len() as u32 {
             return Err(format!("ERROR: invalid vertex normal index in face"));
         }
     }
@@ -207,10 +207,10 @@ fn parse_vn(
     // obj starts from 1, not 0.
     // NB: assuming all indices are valid
     for j in 0..3 {
-        if (vp[j] - 1 < 0) || (vp[j] - 1 >= unsorted_vtn.vp.len() as u32) {
+        if vp[j] - 1 >= unsorted_vtn.vp.len() as u32 {
             return Err(format!("ERROR: invalid vertex position index in face"));
         }
-        if (vn[j] - 1 < 0) || (vn[j] - 1 >= unsorted_vtn.vn.len() as u32) {
+        if vn[j] - 1 >= unsorted_vtn.vn.len() as u32 {
             return Err(format!("ERROR: invalid vertex normal index in face"));
         }
     }
