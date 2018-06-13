@@ -56,9 +56,11 @@ fn get_ray_from_mouse(proj_mat: &Mat4, view_mat: &Mat4, mouse_x: f32, mouse_y: f
     ray_wor
 }
 
-/* check if a ray and a sphere intersect. if not hit, returns false. it rejects
-intersections behind the ray caster's origin, and sets intersection_distance to
-the closest intersection */
+///
+/// Determine if a ray and a sphere intersect. If the ray hits the spehere, it returns false. 
+/// It rejects intersections behind the ray caster's origin, and sets `intersection_distance` to
+/// the closest intersection.
+///
 fn ray_sphere(
     ray_origin_wor: Vec3, ray_direction_wor: Vec3,
     sphere_centre_wor: Vec3, sphere_radius: f32, intersection_distance: &f32) -> bool {
