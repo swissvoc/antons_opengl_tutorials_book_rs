@@ -36,7 +36,7 @@ static mut G_SELECTED_SPHERE: isize = -1;
 /// Take the mouse position on screen and return ray cast into the scene in
 /// world space coordinates.
 ///
-fn get_ray_from_mouse(mouse_x: f32, mouse_y: f32) -> Vec3 {
+fn get_ray_from_mouse(proj_mat: &Mat4, view_mat: &Mat4, mouse_x: f32, mouse_y: f32) -> Vec3 {
     // Screen space (Viewport coordinates).
     let x = (2.0 * mouse_x) / (G_GL_WIDTH as f32) - 1.0;
     let y = 1.0 - (2.0 * mouse_y) / (G_GL_HEIGHT as f32);
@@ -59,52 +59,52 @@ fn get_ray_from_mouse(mouse_x: f32, mouse_y: f32) -> Vec3 {
 /* check if a ray and a sphere intersect. if not hit, returns false. it rejects
 intersections behind the ray caster's origin, and sets intersection_distance to
 the closest intersection */
-fn ray_sphere(vec3 ray_origin_wor, vec3 ray_direction_wor,
-                                 vec3 sphere_centre_wor, float sphere_radius,
-                                 float *intersection_distance ) {
-    // work out components of quadratic
-    vec3 dist_to_sphere = ray_origin_wor - sphere_centre_wor;
-    float b = dot( ray_direction_wor, dist_to_sphere );
-    float c = dot( dist_to_sphere, dist_to_sphere ) - sphere_radius * sphere_radius;
-    float b_squared_minus_c = b * b - c;
-    // check for "imaginary" answer. == ray completely misses sphere
-    if ( b_squared_minus_c < 0.0f ) {
+fn ray_sphere(
+    ray_origin_wor: Vec3, ray_direction_wor: Vec3,
+    sphere_centre_wor: Vec3, sphere_radius: f32, intersection_distance: &f32) -> bool {
+    
+    // Work out components of quadratic.
+    let dist_to_sphere = ray_origin_wor - sphere_centre_wor;
+    let b = ray_direction_wor.dot(&dist_to_sphere);
+    let c = dist_to_sphere.dot(&dist_to_sphere) - sphere_radius * sphere_radius;
+    let b_squared_minus_c = b * b - c;
+    // Check for "imaginary" answer. == ray completely misses sphere
+    if b_squared_minus_c < 0.0 {
         return false;
     }
-    // check for ray hitting twice (in and out of the sphere)
-    if ( b_squared_minus_c > 0.0f ) {
-        // get the 2 intersection distances along ray
-        float t_a = -b + sqrt( b_squared_minus_c );
-        float t_b = -b - sqrt( b_squared_minus_c );
+    // Check whether the ray hits the sphere twice (into and out of the sphere).
+    if b_squared_minus_c > 0.0 {
+        // Get the 2 intersection distances along the ray.
+        let t_a = -b + f32::sqrt(b_squared_minus_c);
+        let t_b = -b - f32::sqrt(b_squared_minus_c);
         *intersection_distance = t_b;
-        // if behind viewer, throw one or both away
-        if ( t_a < 0.0 ) {
-            if ( t_b < 0.0 ) {
+        // if the object is behind the viewer, throw one or both away.
+        if t_a < 0.0 {
+            if t_b < 0.0 {
                 return false;
             }
-        } else if ( t_b < 0.0 ) {
+        } else if t_b < 0.0 {
             *intersection_distance = t_a;
         }
 
         return true;
     }
-    // check for ray hitting once (skimming the surface)
-    if ( 0.0f == b_squared_minus_c ) {
-        // if behind viewer, throw away
-        float t = -b + sqrt( b_squared_minus_c );
-        if ( t < 0.0f ) {
+    // Check whether the ray skims the surface (i.e. it hits at one point).
+    if b_squared_minus_c == 0.0 {
+        // If the ray hits behind the viewer, throw away the ray.
+        let t = -b + f32::sqrt(b_squared_minus_c);
+        if t < 0.0 {
             return false;
         }
         *intersection_distance = t;
         return true;
     }
-    // note: could also check if ray origin is inside sphere radius
+    // NOTE: we could also check if the ray origin is inside the sphere radius.
     return false;
 }
 
 /* this function is called when the mouse buttons are clicked or un-clicked */
-fn glfw_mouse_click_callback(GLFWwindow *window, int button, int action,
-                                                                int mods ) {
+fn glfw_mouse_click_callback(GLFWwindow *window, int button, int action, int mods) {
     // Note: could query if window has lost focus here
     if ( GLFW_PRESS == action ) {
         double xpos, ypos;
