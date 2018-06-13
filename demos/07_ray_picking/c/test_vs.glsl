@@ -2,7 +2,7 @@
 
 layout(location = 0) in vec3 vertex_position;
 uniform mat4 model, view, proj;
-// use z position to shader darker to help perception of distance
+// Use z position to shader darker to help perception of distance.
 out float dist;
 
 void main() {

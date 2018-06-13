@@ -74,8 +74,8 @@ fn main() {
     // Input variables
     let near = 0.1;                                                 // Near clipping plane
     let far = 100.0;                                                // Far clipping plane
-    let fovy = 67.0;                                                // 67 degrees
-    let aspect = unsafe { G_GL_WIDTH as f32 / G_GL_HEIGHT as f32 }; // aspect ratio
+    let fovy = 67.0;                                                // 67 Degree field of view.
+    let aspect = unsafe { G_GL_WIDTH as f32 / G_GL_HEIGHT as f32 }; // Aspect ratio
     let proj_mat = Mat4::perspective(fovy, aspect, near, far);
 
     let cam_speed = 5.0;           // 1 unit per second
