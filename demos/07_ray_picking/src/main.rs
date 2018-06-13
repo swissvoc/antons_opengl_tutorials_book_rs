@@ -20,7 +20,7 @@ use std::process;
 use gl_utils::*;
 
 use graphics_math as math;
-use math::{Mat4, Versor};
+use math::{Vec3, Mat4, Versor};
 
 const MESH_FILE: &str = "src/sphere.obj";
 const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
@@ -31,6 +31,104 @@ const SPHERE_RADIUS: f32 = 1.0;
 static mut PREVIOUS_SECONDS: f64 = 0.0;
 static mut G_SELECTED_SPHERE: isize = -1;
 
+
+///
+/// Take the mouse position on screen and return ray cast into the scene in
+/// world space coordinates.
+///
+fn get_ray_from_mouse(mouse_x: f32, mouse_y: f32) -> Vec3 {
+    // Screen space (Viewport coordinates).
+    let x = (2.0 * mouse_x) / (G_GL_WIDTH as f32) - 1.0;
+    let y = 1.0 - (2.0 * mouse_y) / (G_GL_HEIGHT as f32);
+    let z = 1.0;
+    // Normalised device coordinates.
+    let ray_nds = math::vec3((x, y, z));
+    // Clip space.
+    let ray_clip = math::vec4((ray_nds.v[0], ray_nds.v[1], -1.0, 1.0));
+    // Eye space.
+    let ray_eye = proj_mat.inverse() * ray_clip;
+    let ray_eye = math::vec4((ray_eye.v[0], ray_eye.v[1], -1.0, 0.0));
+    // World space.
+    let ray_wor = math::vec3(view_mat.inverse() * ray_eye);
+    // Don't forget to normalize the vector at some point.
+    ray_wor = ray_wor.normalize();
+    
+    ray_wor
+}
+
+/* check if a ray and a sphere intersect. if not hit, returns false. it rejects
+intersections behind the ray caster's origin, and sets intersection_distance to
+the closest intersection */
+fn ray_sphere(vec3 ray_origin_wor, vec3 ray_direction_wor,
+                                 vec3 sphere_centre_wor, float sphere_radius,
+                                 float *intersection_distance ) {
+    // work out components of quadratic
+    vec3 dist_to_sphere = ray_origin_wor - sphere_centre_wor;
+    float b = dot( ray_direction_wor, dist_to_sphere );
+    float c = dot( dist_to_sphere, dist_to_sphere ) - sphere_radius * sphere_radius;
+    float b_squared_minus_c = b * b - c;
+    // check for "imaginary" answer. == ray completely misses sphere
+    if ( b_squared_minus_c < 0.0f ) {
+        return false;
+    }
+    // check for ray hitting twice (in and out of the sphere)
+    if ( b_squared_minus_c > 0.0f ) {
+        // get the 2 intersection distances along ray
+        float t_a = -b + sqrt( b_squared_minus_c );
+        float t_b = -b - sqrt( b_squared_minus_c );
+        *intersection_distance = t_b;
+        // if behind viewer, throw one or both away
+        if ( t_a < 0.0 ) {
+            if ( t_b < 0.0 ) {
+                return false;
+            }
+        } else if ( t_b < 0.0 ) {
+            *intersection_distance = t_a;
+        }
+
+        return true;
+    }
+    // check for ray hitting once (skimming the surface)
+    if ( 0.0f == b_squared_minus_c ) {
+        // if behind viewer, throw away
+        float t = -b + sqrt( b_squared_minus_c );
+        if ( t < 0.0f ) {
+            return false;
+        }
+        *intersection_distance = t;
+        return true;
+    }
+    // note: could also check if ray origin is inside sphere radius
+    return false;
+}
+
+/* this function is called when the mouse buttons are clicked or un-clicked */
+fn glfw_mouse_click_callback(GLFWwindow *window, int button, int action,
+                                                                int mods ) {
+    // Note: could query if window has lost focus here
+    if ( GLFW_PRESS == action ) {
+        double xpos, ypos;
+        glfwGetCursorPos( g_window, &xpos, &ypos );
+        // work out ray
+        vec3 ray_wor = get_ray_from_mouse( (float)xpos, (float)ypos );
+        // check ray against all spheres in scene
+        int closest_sphere_clicked = -1;
+        float closest_intersection = 0.0f;
+        for ( int i = 0; i < NUM_SPHERES; i++ ) {
+            float t_dist = 0.0f;
+            if ( ray_sphere( cam_pos, ray_wor, sphere_pos_wor[i], sphere_radius,
+                                             &t_dist ) ) {
+                // if more than one sphere is in path of ray, only use the closest one
+                if ( -1 == closest_sphere_clicked || t_dist < closest_intersection ) {
+                    closest_sphere_clicked = i;
+                    closest_intersection = t_dist;
+                }
+            }
+        } // endfor
+        g_selected_sphere = closest_sphere_clicked;
+        printf( "sphere %i was clicked\n", closest_sphere_clicked );
+    }
+}
 
 fn main() {
     /*--------------------------------START OPENGL--------------------------------*/
