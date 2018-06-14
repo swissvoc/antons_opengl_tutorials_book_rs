@@ -871,7 +871,10 @@ impl Mat4 {
                                     self.m[4] * self.m[1] * self.m[10] + self.m[0] * self.m[5] * self.m[10] ) );
     }
 
-    // returns a perspective function mimicking the opengl projection style.
+    ///
+    /// Compute the perspective matrix for converting from camera space to 
+    /// normalized device coordinates.
+    ///
     pub fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
         let fov_rad = fovy * ONE_DEG_IN_RAD;
         let range = f32::tan(fov_rad / 2.0) * near;
@@ -889,6 +892,10 @@ impl Mat4 {
         m
     }
 
+    /// 
+    /// Generate a pointer to the underlying array for passing a
+    /// matrix to the graphics hardware.
+    ///
     pub fn as_ptr(&self) -> *const f32 {
         self.m.as_ptr()
     }
