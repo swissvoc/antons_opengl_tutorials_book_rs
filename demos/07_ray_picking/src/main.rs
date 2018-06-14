@@ -378,6 +378,8 @@ fn main() {
             }
             _ => {}
         }
+
+        // Handle mouse clicks.
         match g_window.get_mouse_button(glfw::MouseButtonLeft) {
             Action::Press => {
                 glfw_mouse_click_callback(
