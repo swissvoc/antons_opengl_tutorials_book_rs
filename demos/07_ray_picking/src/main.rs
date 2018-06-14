@@ -10,7 +10,7 @@ mod graphics_math;
 mod obj_parser;
 
 
-use glfw::{Action, Context, Key};
+use glfw::{Action, Context, Key, MouseButton};
 use gl::types::{GLfloat, GLsizeiptr, GLvoid};
 
 use std::mem;
@@ -63,7 +63,7 @@ fn get_ray_from_mouse(proj_mat: &Mat4, view_mat: &Mat4, mouse_x: f32, mouse_y: f
 ///
 fn ray_sphere(
     ray_origin_wor: Vec3, ray_direction_wor: Vec3,
-    sphere_centre_wor: Vec3, sphere_radius: f32, intersection_distance: &f32) -> bool {
+    sphere_centre_wor: Vec3, sphere_radius: f32, intersection_distance: &mut f32) -> bool {
     
     // Work out components of quadratic.
     let dist_to_sphere = ray_origin_wor - sphere_centre_wor;
@@ -105,30 +105,39 @@ fn ray_sphere(
     return false;
 }
 
-/* this function is called when the mouse buttons are clicked or un-clicked */
-fn glfw_mouse_click_callback(GLFWwindow *window, int button, int action, int mods) {
-    // Note: could query if window has lost focus here
-    if ( GLFW_PRESS == action ) {
-        double xpos, ypos;
-        glfwGetCursorPos( g_window, &xpos, &ypos );
-        // work out ray
-        vec3 ray_wor = get_ray_from_mouse( (float)xpos, (float)ypos );
-        // check ray against all spheres in scene
-        int closest_sphere_clicked = -1;
-        float closest_intersection = 0.0f;
-        for ( int i = 0; i < NUM_SPHERES; i++ ) {
-            float t_dist = 0.0f;
-            if ( ray_sphere( cam_pos, ray_wor, sphere_pos_wor[i], sphere_radius,
-                                             &t_dist ) ) {
-                // if more than one sphere is in path of ray, only use the closest one
-                if ( -1 == closest_sphere_clicked || t_dist < closest_intersection ) {
-                    closest_sphere_clicked = i;
-                    closest_intersection = t_dist;
+///
+/// This function gets called whenever the mouse buttons are clicked or unclicked.
+///
+fn glfw_mouse_click_callback(
+    window: &mut glfw::Window, button: MouseButton, action: Action, 
+    proj_mat: &Mat4, view_mat: &Mat4, cam_pos: Vec3, sphere_pos_wor: &[Vec3]) {
+    // NOTE: We could alsop query if window is out of focus here.
+    // NOTE: We are not distinguishing between different mouse buttons in this callback for this demo.
+    match action {
+        Action::Press => {
+            let (x_pos, y_pos) = window.get_cursor_pos();
+            // Work out the ray into the scene from the mouse.
+            let ray_wor = get_ray_from_mouse(proj_mat, view_mat, x_pos as f32, y_pos as f32);
+            // Find which sphere the ray intersects, if any, in the scene.
+            let mut closest_sphere_clicked = -1;
+            let mut closest_intersection = 0.0;
+            for i in 0..NUM_SPHERES {
+                let mut t_dist = 0.0;
+                if ray_sphere(cam_pos, ray_wor, sphere_pos_wor[i], SPHERE_RADIUS, &mut t_dist) {
+                    // If more than one sphere is in path of the ray, choose only the closest one.
+                    if closest_sphere_clicked == -1 || t_dist < closest_intersection {
+                        closest_sphere_clicked = i as isize;
+                        closest_intersection = t_dist;
+                    }
                 }
             }
-        } // endfor
-        g_selected_sphere = closest_sphere_clicked;
-        printf( "sphere %i was clicked\n", closest_sphere_clicked );
+        
+            unsafe {
+                G_SELECTED_SPHERE = closest_sphere_clicked;
+            }
+            println!("Sphere {} was clicked", closest_sphere_clicked);
+        }
+        _ => {}
     }
 }
 
