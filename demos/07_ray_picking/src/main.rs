@@ -38,8 +38,8 @@ static mut G_SELECTED_SPHERE: isize = -1;
 ///
 fn get_ray_from_mouse(proj_mat: &Mat4, view_mat: &Mat4, mouse_x: f32, mouse_y: f32) -> Vec3 {
     // Screen space (Viewport coordinates).
-    let x = (2.0 * mouse_x) / (G_GL_WIDTH as f32) - 1.0;
-    let y = 1.0 - (2.0 * mouse_y) / (G_GL_HEIGHT as f32);
+    let x = unsafe { (2.0 * mouse_x) / (G_GL_WIDTH as f32) - 1.0 };
+    let y = unsafe { 1.0 - (2.0 * mouse_y) / (G_GL_HEIGHT as f32) };
     let z = 1.0;
     // Normalised device coordinates.
     let ray_nds = math::vec3((x, y, z));
@@ -50,10 +50,9 @@ fn get_ray_from_mouse(proj_mat: &Mat4, view_mat: &Mat4, mouse_x: f32, mouse_y: f
     let ray_eye = math::vec4((ray_eye.v[0], ray_eye.v[1], -1.0, 0.0));
     // World space.
     let ray_wor = math::vec3(view_mat.inverse() * ray_eye);
-    // Don't forget to normalize the vector at some point.
-    ray_wor = ray_wor.normalize();
     
-    ray_wor
+    // Don't forget to normalize the vector before returning it.
+    ray_wor.normalize()
 }
 
 ///
@@ -80,7 +79,7 @@ fn ray_sphere(
         let t_a = -b + f32::sqrt(b_squared_minus_c);
         let t_b = -b - f32::sqrt(b_squared_minus_c);
         *intersection_distance = t_b;
-        // if the object is behind the viewer, throw one or both away.
+        // If the object is behind the viewer, throw one or both away.
         if t_a < 0.0 {
             if t_b < 0.0 {
                 return false;
@@ -376,6 +375,16 @@ fn main() {
                 cam_moved = true;
                 let mut q_roll = Versor::from_axis_deg(cam_roll, fwd.v[0], fwd.v[1], fwd.v[2]);
                 q = q_roll * &q;
+            }
+            _ => {}
+        }
+        match g_window.get_mouse_button(glfw::MouseButtonLeft) {
+            Action::Press => {
+                glfw_mouse_click_callback(
+                    &mut g_window, 
+                    glfw::MouseButtonLeft, Action::Press, 
+                    &proj_mat, &view_mat, cam_pos, &sphere_pos_wor
+                );
             }
             _ => {}
         }
