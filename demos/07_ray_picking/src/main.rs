@@ -146,7 +146,6 @@ fn main() {
     // Start GL context and OS window using the GLFW helper library.
     let (mut glfw, mut g_window, _g_events) = start_gl().unwrap();
     // set a function to be called when the mouse is clicked
-    //glfw::ffi::glfwSetMouseButtonCallback( g_window, glfw_mouse_click_callback );
     
     /*------------------------------CREATE GEOMETRY-------------------------------*/
     let mesh = match obj_parser::load_obj_file(MESH_FILE) {

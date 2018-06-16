@@ -11,7 +11,7 @@ mod obj_parser;
 
 
 use glfw::{Action, Context, Key};
-use gl::types::{GLfloat, GLsizeiptr, GLvoid};
+use gl::types::{GLfloat, GLsizeiptr, GLvoid, GLsizei};
 
 use std::mem;
 use std::ptr;
@@ -28,7 +28,7 @@ const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
 fn main() {
     restart_gl_log();
     // start GL context and O/S window using the GLFW helper library
-    let (mut glfw, mut g_window, _g_events) = start_gl().unwrap();
+    let (mut glfw, mut g_window, mut _g_events) = start_gl().unwrap();
     // tell GL to only draw onto a pixel if the shape is closer to the viewer
 
     /* OTHER STUFF GOES HERE NEXT */
@@ -43,35 +43,28 @@ fn main() {
     let mut points_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut points_vbo);
-    }
-    assert!(points_vbo != 0);
-    unsafe {
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::BufferData(
-            gl::ARRAY_BUFFER, (9 * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            gl::ARRAY_BUFFER, (points.len() * mem::size_of::<GLfloat>()) as GLsizeiptr, 
             points.as_ptr() as *const GLvoid, gl::STATIC_DRAW
         );
     }
+    assert!(points_vbo != 0);
 
     let mut normals_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut normals_vbo);
-    }
-    assert!(normals_vbo != 0);
-    unsafe {
         gl::BindBuffer(gl::ARRAY_BUFFER, normals_vbo);
         gl::BufferData(
-            gl::ARRAY_BUFFER, (9 * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            gl::ARRAY_BUFFER, (normals.len() * mem::size_of::<GLfloat>()) as GLsizeiptr, 
             normals.as_ptr() as *const GLvoid, gl::STATIC_DRAW
         );
     }
+    assert!(normals_vbo != 0);
 
     let mut vao = 0;
     unsafe {
         gl::GenVertexArrays(1, &mut vao);
-    }
-    assert!(vao != 0);
-    unsafe {
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
@@ -80,6 +73,7 @@ fn main() {
         gl::EnableVertexAttribArray(0);
         gl::EnableVertexAttribArray(1);
     }
+    assert!(vao != 0);
 
     let shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
 
@@ -132,18 +126,18 @@ fn main() {
         gl::DepthFunc(gl::LESS);    // depth-testing interprets a smaller value as "closer"
         gl::Enable(gl::CULL_FACE); // cull face
         gl::CullFace(gl::BACK);    // cull back face
-        gl::FrontFace(gl::CW);     // GL_CCW for counter clock-wise
+        gl::FrontFace(gl::CCW);     // GL_CCW for counter clock-wise
     }
 
     while !g_window.should_close() {
-        _update_fps_counter(&mut glfw, &mut g_window);
         let current_seconds = glfw.get_time();
+        _update_fps_counter(&glfw, &mut g_window);
 
         unsafe {
             // wipe the drawing surface clear
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::ClearColor(0.2, 0.2, 0.2, 1.0);
-            gl::Viewport(0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32);
+            gl::Viewport(0, 0, G_GL_WIDTH as GLsizei, G_GL_HEIGHT as GLsizei);
 
             gl::UseProgram(shader_programme);
 

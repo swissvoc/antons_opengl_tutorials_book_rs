@@ -179,7 +179,6 @@ pub fn start_gl() -> Result<(glfw::Glfw, glfw::Window, Receiver<(f64, glfw::Wind
         G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Vectors And Matrices", glfw::WindowMode::Windowed
     )
     .expect("Failed to create GLFW window.");
-    //glfw::ffi::glfwSetWindowSizeCallback(&mut window, Some(glfw_framebuffer_size_callback));
 
     window.make_current();
     window.set_key_polling(true);

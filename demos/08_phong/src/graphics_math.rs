@@ -877,7 +877,7 @@ impl Mat4 {
     ///
     pub fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
         let fov_rad = fovy * ONE_DEG_IN_RAD;
-        let range = f32::tan(fov_rad / 2.0) * near;
+        let range = f32::tan(fov_rad * 0.5) * near;
         let sx = (2.0 * near) / (range * aspect + range * aspect);
         let sy = near / range;
         let sz = -(far + near) / (far - near);
