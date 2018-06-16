@@ -10,7 +10,7 @@ mod graphics_math;
 mod obj_parser;
 
 
-use glfw::{Action, Context, Key, MouseButton};
+use glfw::{Action, Context, Key};
 use gl::types::{GLfloat, GLsizeiptr, GLvoid};
 
 use std::mem;
@@ -21,11 +21,8 @@ use gl_utils::*;
 use graphics_math as math;
 use math::Mat4;
 
-const MESH_FILE: &str = "src/sphere.obj";
 const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
-
-static mut PREVIOUS_SECONDS: f64 = 0.0;
 
 
 fn main() {
