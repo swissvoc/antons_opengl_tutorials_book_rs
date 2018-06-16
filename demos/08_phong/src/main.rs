@@ -61,7 +61,7 @@ fn main() {
     unsafe {
         gl::BindBuffer(gl::ARRAY_BUFFER, normals_vbo);
         gl::BufferData(
-            gl::ARRAY_BUFFER, 9 * mem::size_of::<GLfloat>() as GLsizeiptr, 
+            gl::ARRAY_BUFFER, (9 * mem::size_of::<GLfloat>()) as GLsizeiptr, 
             normals.as_ptr() as *const GLvoid, gl::STATIC_DRAW
         );
     }
@@ -86,7 +86,7 @@ fn main() {
     // input variables
     let near = 0.1;                                  // clipping plane
     let far = 100.0;                                 // clipping plane
-    let fov = 67.0 * math::ONE_DEG_IN_RAD; // convert 67 degrees to radians
+    let fov = 67.0;                                  // 67 degrees to radians
     let aspect = unsafe { G_GL_WIDTH as f32 / G_GL_HEIGHT as f32 }; // aspect ratio
     // matrix components
     let proj_mat = Mat4::perspective(fov, aspect, near, far);
@@ -120,7 +120,7 @@ fn main() {
         gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
     }    
     let model_mat_location = unsafe { 
-        gl::GetUniformLocation( shader_programme, "model_mat".as_ptr() as *const i8)
+        gl::GetUniformLocation(shader_programme, "model_mat".as_ptr() as *const i8)
     };
     assert!(model_mat_location != -1);
     unsafe {

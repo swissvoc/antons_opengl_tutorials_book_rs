@@ -117,6 +117,7 @@ int main() {
 		glUseProgram( shader_programme );
 
 		model_mat.m[12] = sinf( current_seconds );
+		printf("current_seconds = %i\n", current_seconds);
 		glUniformMatrix4fv( model_mat_location, 1, GL_FALSE, model_mat.m );
 
 		glBindVertexArray( vao );
