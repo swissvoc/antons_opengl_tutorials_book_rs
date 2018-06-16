@@ -30,10 +30,6 @@ fn main() {
     // start GL context and O/S window using the GLFW helper library
     let (mut glfw, mut g_window, _g_events) = start_gl().unwrap();
     // tell GL to only draw onto a pixel if the shape is closer to the viewer
-    unsafe {
-        gl::Enable(gl::DEPTH_TEST); // enable depth-testing
-        gl::DepthFunc(gl::LESS);      // depth-testing interprets a smaller value as "closer"
-    }
 
     /* OTHER STUFF GOES HERE NEXT */
     let points = [
@@ -52,7 +48,7 @@ fn main() {
     unsafe {
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::BufferData(
-            gl::ARRAY_BUFFER, 9 * mem::size_of::<GLfloat>() as GLsizeiptr, 
+            gl::ARRAY_BUFFER, (9 * mem::size_of::<GLfloat>()) as GLsizeiptr, 
             points.as_ptr() as *const GLvoid, gl::STATIC_DRAW
         );
     }
@@ -107,26 +103,46 @@ fn main() {
 
     unsafe {
         gl::UseProgram(shader_programme);
-        let view_mat_location = gl::GetUniformLocation(shader_programme, "view_mat".as_ptr() as *const i8);
-        assert!(view_mat_location != -1);
+    }
+        
+    let view_mat_location = unsafe {
+        gl::GetUniformLocation(shader_programme, "view_mat".as_ptr() as *const i8) 
+    };
+    assert!(view_mat_location != -1);
+    unsafe {    
         gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
-        let proj_mat_location = gl::GetUniformLocation(shader_programme, "projection_mat".as_ptr() as *const i8);
-        assert!(proj_mat_location != -1);
+    }
+    let proj_mat_location = unsafe { 
+        gl::GetUniformLocation(shader_programme, "projection_mat".as_ptr() as *const i8)
+    };
+    assert!(proj_mat_location != -1);
+    unsafe {    
         gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
-        let model_mat_location = gl::GetUniformLocation( shader_programme, "model_mat".as_ptr() as *const i8);
-        assert!(model_mat_location != -1);
+    }    
+    let model_mat_location = unsafe { 
+        gl::GetUniformLocation( shader_programme, "model_mat".as_ptr() as *const i8)
+    };
+    assert!(model_mat_location != -1);
+    unsafe {
         gl::UniformMatrix4fv(model_mat_location, 1, gl::FALSE, model_mat.as_ptr());
+    }
 
+    unsafe {
+        gl::Enable(gl::DEPTH_TEST); // enable depth-testing
+        gl::DepthFunc(gl::LESS);    // depth-testing interprets a smaller value as "closer"
         gl::Enable(gl::CULL_FACE); // cull face
         gl::CullFace(gl::BACK);    // cull back face
         gl::FrontFace(gl::CW);     // GL_CCW for counter clock-wise
+    }
 
-        while !g_window.should_close() {
-            _update_fps_counter(&mut glfw, &mut g_window);
-            let current_seconds = glfw.get_time();
+    while !g_window.should_close() {
+        _update_fps_counter(&mut glfw, &mut g_window);
+        let current_seconds = glfw.get_time();
 
+        unsafe {
             // wipe the drawing surface clear
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::ClearColor(0.2, 0.2, 0.2, 1.0);
             gl::Viewport(0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32);
 
             gl::UseProgram(shader_programme);
@@ -145,9 +161,9 @@ fn main() {
                 }
                 _ => {}
             }
-
-            // put the stuff we've been drawing onto the display
-            g_window.swap_buffers();
         }
+
+        // put the stuff we've been drawing onto the display
+        g_window.swap_buffers();
     }
 }
