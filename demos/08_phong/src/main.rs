@@ -32,11 +32,14 @@ fn main() {
     // tell GL to only draw onto a pixel if the shape is closer to the viewer
 
     /* OTHER STUFF GOES HERE NEXT */
-    let points = [
+    // NOTE: When setting up buffers to pass out across the FFI boundary to OpenGL, 
+    // you should declare their types. Sometimes type inferences gives you the wrong type.
+    // In this case, you may end up with a f64 array when you wanted a f32 array.
+    let points: [GLfloat; 9] = [
         0.0, 0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0
     ];
 
-    let normals = [
+    let normals: [GLfloat; 9] = [
         0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
     ];
 
@@ -126,7 +129,7 @@ fn main() {
         gl::DepthFunc(gl::LESS);    // depth-testing interprets a smaller value as "closer"
         gl::Enable(gl::CULL_FACE); // cull face
         gl::CullFace(gl::BACK);    // cull back face
-        gl::FrontFace(gl::CCW);     // GL_CCW for counter clock-wise
+        gl::FrontFace(gl::CW);     // GL_CCW for counter clock-wise
     }
 
     while !g_window.should_close() {
