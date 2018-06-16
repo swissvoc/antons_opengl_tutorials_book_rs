@@ -665,7 +665,7 @@ impl convert::AsMut<[f32; 9]> for Mat3 {
 ///
 #[derive(Copy, Clone, Debug)]
 pub struct Mat4 {
-    m: [f32; 16],
+    pub m: [f32; 16],
 }
 
 impl Mat4 {
