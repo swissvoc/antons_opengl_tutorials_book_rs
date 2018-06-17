@@ -65,7 +65,6 @@ pub fn restart_gl_log() -> bool {
 
     let date = Utc::now();
     write!(file, "GL_LOG_FILE log. local time {}", date).unwrap();
-    // TODO: Use a build script in a build.rs file to generate this.
     write!(file, "build version: ??? ?? ???? ??:??:??\n\n").unwrap();
 
     return true;
