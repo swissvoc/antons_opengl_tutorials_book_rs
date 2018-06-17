@@ -34,6 +34,11 @@ const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
 static mut PREVIOUS_SECONDS: f64 = 0.0;
 
 
+fn screen_capture() {
+
+}
+
+
 fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
     let force_channels = 4;
     let mut image_data = match image::load_with_depth(file_name, force_channels, false) {
@@ -219,6 +224,14 @@ fn main() {
         }
 
         glfw.poll_events();
+
+        match g_window.get_key(Key::Space) {
+            Action::Press => {
+                println!("Screen captured.");
+                screen_capture();
+            }
+            _ => {}
+        }
 
         // control keys
         let mut cam_moved = false;
