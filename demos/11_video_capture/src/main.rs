@@ -49,7 +49,7 @@ static mut PREVIOUS_SECONDS: f64 = 0.0;
 struct FrameBufferDumper {
     width: usize,
     height: usize,
-    depth: usize,
+    channels: usize,
     index: Vec<(usize, usize)>,
     data: Vec<u8>,
 }
@@ -57,14 +57,14 @@ struct FrameBufferDumper {
 impl FrameBufferDumper {
     fn new(
         video_fps: usize, video_seconds_total: usize, 
-        width: usize, height: usize, depth: usize) -> FrameBufferDumper {
+        width: usize, height: usize, channels: usize) -> FrameBufferDumper {
         
         FrameBufferDumper {
             width: width,
             height: height,
-            depth: depth,
+            channels: channels,
             index: vec![],
-            data: vec![0; video_fps * video_seconds_total * width * height * depth],
+            data: vec![0; video_fps * video_seconds_total * width * height * channels],
         }
     }
 
@@ -83,7 +83,7 @@ impl FrameBufferDumper {
             false => self.index[self.index.len() - 1].0,
         };
 
-        let end = start + self.width * self.height * self.depth;
+        let end = start + self.width * self.height * self.channels;
         self.index.push((start, end));
 
         &mut self.data[start..end]
@@ -100,7 +100,7 @@ impl FrameBufferDumper {
         encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
         let mut png_writer = encoder.write_header().unwrap();
 
-        let result =  png_writer.write_image_data(&self.data[start..end]);
+        let result = png_writer.write_image_data(&self.data[start..end]);
         if result.is_err() {
             eprintln!("ERROR: could not write video frame file {}", file_name);
         }
@@ -337,7 +337,8 @@ fn main() {
     let frame_time = 0.04;          // 1/25 seconds of time
     let mut dumper = unsafe {
         FrameBufferDumper::new(
-            G_GL_WIDTH as usize, G_GL_HEIGHT as usize, 3, G_VIDEO_SECONDS_TOTAL, G_VIDEO_FPS
+            G_VIDEO_SECONDS_TOTAL, G_VIDEO_FPS,
+            G_GL_WIDTH as usize, G_GL_HEIGHT as usize, 3
         )
     };
 
