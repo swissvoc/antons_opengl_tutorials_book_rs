@@ -2,6 +2,7 @@ extern crate gl;
 extern crate glfw;
 extern crate chrono;
 extern crate stb_image;
+extern crate png;
 
 #[macro_use] 
 extern crate scan_fmt;
@@ -12,12 +13,20 @@ mod obj_parser;
 
 
 use glfw::{Action, Context, Key};
-use gl::types::{GLfloat, GLsizeiptr, GLvoid, GLsizei, GLuint};
+use gl::types::{GLfloat, GLsizeiptr, GLvoid, GLuint};
+
 use stb_image::image;
-use stb_image::image::{LoadResult, Image};
+use stb_image::image::LoadResult;
+
+use png::HasParameters;
+
+use chrono::prelude::Utc;
 
 use std::mem;
 use std::ptr;
+use std::path::Path;
+use std::fs::File;
+use std::io::BufWriter;
 
 use gl_utils::*;
 
@@ -34,8 +43,32 @@ const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
 static mut PREVIOUS_SECONDS: f64 = 0.0;
 
 
-fn screen_capture() {
+fn screen_capture() -> bool {
+    let mut frame_buffer: Vec<u8> = unsafe { vec![0; 3 * (G_GL_WIDTH * G_GL_HEIGHT) as usize] };
+    unsafe {
+        gl::ReadPixels(
+            0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, 
+            gl::RGB, gl::UNSIGNED_BYTE, 
+            frame_buffer.as_mut_ptr() as *mut GLvoid
+        );
+    }
+    
+    let date = Utc::now();
+    let name = format!("screenshot_{}.png", date);
+    
+    println!("Writing {}", name);
+    let path = Path::new(&name);
+    let file = File::create(path).unwrap();
+    let buf_writer = BufWriter::new(file);
+    let mut encoder = unsafe { png::Encoder::new(buf_writer, G_GL_WIDTH, G_GL_HEIGHT) };
+    encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
+    let mut png_writer = encoder.write_header().unwrap();
+    let result = png_writer.write_image_data(&frame_buffer);
+    if result.is_err() {
+        eprintln!("ERROR: could not write screenshot file {}", name);
+    }
 
+    return true;
 }
 
 
