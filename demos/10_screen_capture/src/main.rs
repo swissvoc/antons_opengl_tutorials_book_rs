@@ -44,7 +44,9 @@ static mut PREVIOUS_SECONDS: f64 = 0.0;
 
 
 fn screen_capture() -> bool {
-    let mut frame_buffer: Vec<u8> = unsafe { vec![0; 3 * (G_GL_WIDTH * G_GL_HEIGHT) as usize] };
+    let height = unsafe { G_GL_HEIGHT as usize };
+    let width = unsafe { G_GL_WIDTH as usize };
+    let mut frame_buffer: Vec<u8> = vec![0; 3 * (width * height) as usize];
     unsafe {
         gl::ReadPixels(
             0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, 
@@ -53,17 +55,29 @@ fn screen_capture() -> bool {
         );
     }
     
+    let width_in_bytes = 3 * width;
+    let half_height = height / 2;
+    for row in 0..half_height {
+        for col in 0..width_in_bytes {
+            let temp = frame_buffer[row * width_in_bytes + col];
+            frame_buffer[row * width_in_bytes + col] = frame_buffer[((height - row - 1) * width_in_bytes) + col];
+            frame_buffer[((height - row - 1) * width_in_bytes) + col] = temp;
+        }
+    }
+
     let date = Utc::now();
     let name = format!("screenshot_{}.png", date);
     
-    println!("Writing {}", name);
     let path = Path::new(&name);
     let file = File::create(path).unwrap();
     let buf_writer = BufWriter::new(file);
-    let mut encoder = unsafe { png::Encoder::new(buf_writer, G_GL_WIDTH, G_GL_HEIGHT) };
+    let mut encoder = png::Encoder::new(buf_writer, width as u32, height as u32);
     encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
     let mut png_writer = encoder.write_header().unwrap();
-    let result = png_writer.write_image_data(&frame_buffer);
+    
+    println!("Writing {}", name);
+    
+    let result =  png_writer.write_image_data(&frame_buffer);
     if result.is_err() {
         eprintln!("ERROR: could not write screenshot file {}", name);
     }
@@ -95,7 +109,7 @@ fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
         eprintln!("WARNING: texture {} is not power-of-2 dimensions", file_name);
     }
 
-    let width_in_bytes = width * 4;
+    let width_in_bytes = 4 *width;
     let half_height = height / 2;
     for row in 0..half_height {
         for col in 0..width_in_bytes {
