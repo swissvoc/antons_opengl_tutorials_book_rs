@@ -64,7 +64,7 @@ impl FrameBufferDumper {
             height: height,
             depth: depth,
             index: vec![],
-            data: Vec::with_capacity(video_fps * video_seconds_total * width * height * depth),
+            data: vec![0; video_fps * video_seconds_total * width * height * depth],
         }
     }
 
@@ -77,8 +77,14 @@ impl FrameBufferDumper {
     }
 
     fn make_new_frame(&mut self) -> &mut [u8] {
-        let start = self.index[self.index.len() - 1].0;
+        // There are currently not frames in the dumper's buffer.
+        let start = match self.index.is_empty() {
+            true => 0,
+            false => self.index[self.index.len() - 1].0,
+        };
+
         let end = start + self.width * self.height * self.depth;
+        self.index.push((start, end));
 
         &mut self.data[start..end]
     }
