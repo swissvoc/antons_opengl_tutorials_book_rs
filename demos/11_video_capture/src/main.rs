@@ -2,6 +2,7 @@ extern crate gl;
 extern crate glfw;
 extern crate chrono;
 extern crate stb_image;
+extern crate png;
 
 #[macro_use] 
 extern crate scan_fmt;
@@ -12,12 +13,20 @@ mod obj_parser;
 
 
 use glfw::{Action, Context, Key};
-use gl::types::{GLfloat, GLsizeiptr, GLvoid, GLsizei, GLuint};
+use gl::types::{GLfloat, GLsizeiptr, GLvoid, GLuint};
+
 use stb_image::image;
-use stb_image::image::{LoadResult, Image};
+use stb_image::image::LoadResult;
+
+use png::HasParameters;
+
+use chrono::prelude::Utc;
 
 use std::mem;
 use std::ptr;
+use std::path::Path;
+use std::fs::File;
+use std::io::BufWriter;
 
 use gl_utils::*;
 
@@ -31,7 +40,124 @@ const TEXTURE_FILE: &str = "src/skulluvmap.png";
 const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
 const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
 
+const G_VIDEO_SECONDS_TOTAL: usize = 10;
+const G_VIDEO_FPS: usize = 25;
+
 static mut PREVIOUS_SECONDS: f64 = 0.0;
+
+
+struct FrameBufferDumper {
+    width: usize,
+    height: usize,
+    depth: usize,
+    index: Vec<(usize, usize)>,
+    data: Vec<u8>,
+}
+
+impl FrameBufferDumper {
+    fn new(
+        video_fps: usize, video_seconds_total: usize, 
+        width: usize, height: usize, depth: usize) -> FrameBufferDumper {
+        
+        FrameBufferDumper {
+            width: width,
+            height: height,
+            depth: depth,
+            index: vec![],
+            data: Vec::with_capacity(video_fps * video_seconds_total * width * height * depth),
+        }
+    }
+
+    fn frame_count(&self) -> usize {
+        self.index.len()
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.data.len()
+    }
+
+    fn make_new_frame(&mut self) -> &mut [u8] {
+        let start = self.index[self.index.len() - 1].0;
+        let end = start + self.width * self.height * self.depth;
+
+        &mut self.data[start..end]
+    }
+
+    fn dump_video_frame(&self, frame_number: usize) {
+        let file_name = format!("video_frame_{:03}.png", frame_number); 
+        let (start, end) = self.index[frame_number];
+
+        let path = Path::new(&file_name);
+        let file = File::create(path).unwrap();
+        let buf_writer = BufWriter::new(file);
+        let mut encoder = png::Encoder::new(buf_writer, self.width as u32, self.height as u32);
+        encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
+        let mut png_writer = encoder.write_header().unwrap();
+
+        let result =  png_writer.write_image_data(&self.data[start..end]);
+        if result.is_err() {
+            eprintln!("ERROR: could not write video frame file {}", file_name);
+        }
+    }
+
+    fn dump_video_frames(&self) {
+        for frame_number in 0..self.index.len() {
+            self.dump_video_frame(frame_number);
+        }
+    }
+}
+
+fn grab_video_frame(dumper: &mut FrameBufferDumper) {
+    // Copy the frame buffer contents into into a 24-bit RGB image.
+    unsafe {
+        gl::ReadPixels(
+            0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, gl::RGB, gl::UNSIGNED_BYTE,
+            dumper.make_new_frame().as_mut_ptr() as *mut GLvoid
+        );
+    }
+}
+
+fn screen_capture() -> bool {
+    let height = unsafe { G_GL_HEIGHT as usize };
+    let width = unsafe { G_GL_WIDTH as usize };
+    let mut frame_buffer: Vec<u8> = vec![0; 3 * (width * height) as usize];
+    unsafe {
+        gl::ReadPixels(
+            0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, 
+            gl::RGB, gl::UNSIGNED_BYTE, 
+            frame_buffer.as_mut_ptr() as *mut GLvoid
+        );
+    }
+    
+    let width_in_bytes = 3 * width;
+    let half_height = height / 2;
+    for row in 0..half_height {
+        for col in 0..width_in_bytes {
+            let temp = frame_buffer[row * width_in_bytes + col];
+            frame_buffer[row * width_in_bytes + col] = frame_buffer[((height - row - 1) * width_in_bytes) + col];
+            frame_buffer[((height - row - 1) * width_in_bytes) + col] = temp;
+        }
+    }
+
+    let date = Utc::now();
+    let name = format!("screenshot_{}.png", date);
+    
+    let path = Path::new(&name);
+    let file = File::create(path).unwrap();
+    let buf_writer = BufWriter::new(file);
+    let mut encoder = png::Encoder::new(buf_writer, width as u32, height as u32);
+    encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
+    let mut png_writer = encoder.write_header().unwrap();
+    
+    println!("Writing {}", name);
+    
+    let result =  png_writer.write_image_data(&frame_buffer);
+    if result.is_err() {
+        eprintln!("ERROR: could not write screenshot file {}", name);
+    }
+
+    return true;
+}
 
 
 fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
@@ -57,7 +183,7 @@ fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
         eprintln!("WARNING: texture {} is not power-of-2 dimensions", file_name);
     }
 
-    let width_in_bytes = width * 4;
+    let width_in_bytes = 4 *width;
     let half_height = height / 2;
     for row in 0..half_height {
         for col in 0..width_in_bytes {
@@ -181,11 +307,11 @@ fn main() {
     let proj_mat_location = unsafe { 
         gl::GetUniformLocation(shader_programme, "proj".as_ptr() as *const i8)
     };
+    assert!(proj_mat_location != -1);
     unsafe {
         gl::UseProgram(shader_programme);
         gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
     }
-    assert!(proj_mat_location != -1);
 
     // load texture
     let mut tex: GLuint = 0;
@@ -198,11 +324,32 @@ fn main() {
         gl::FrontFace(gl::CCW);    // GL_CCW for counter clock-wise
     }
 
+    // Initialize timers for video dumping.
+    let mut dump_video = false;
+    let mut video_timer = 0.0;      // time video has been recording
+    let mut video_dump_timer = 0.0; // timer for next frame grab
+    let frame_time = 0.04;          // 1/25 seconds of time
+    let mut dumper = unsafe {
+        FrameBufferDumper::new(
+            G_GL_WIDTH as usize, G_GL_HEIGHT as usize, 3, G_VIDEO_SECONDS_TOTAL, G_VIDEO_FPS
+        )
+    };
+
     while !g_window.should_close() {
         let current_seconds = glfw.get_time();
         let elapsed_seconds = unsafe { current_seconds - PREVIOUS_SECONDS };
         unsafe {
             PREVIOUS_SECONDS = current_seconds;
+        }
+
+        if dump_video {
+            // elapsed_seconds is seconds since last loop iteration
+            video_timer += elapsed_seconds;
+            video_dump_timer += elapsed_seconds;
+            // only record 10s of video, then quit
+            if video_timer > 10.0 {
+                break;
+            }
         }
 
         _update_fps_counter(&glfw, &mut g_window);
@@ -219,6 +366,14 @@ fn main() {
         }
 
         glfw.poll_events();
+
+        match g_window.get_key(Key::Space) {
+            Action::Press | Action::Repeat => {
+                dump_video = true;
+                println!("dump_video set to true.");
+            }
+            _ => {}
+        }
 
         // control keys
         let mut cam_moved = false;
@@ -288,6 +443,13 @@ fn main() {
             }
         }
 
+        if dump_video { // check if recording mode is enabled
+            while video_dump_timer > frame_time {
+                grab_video_frame(&mut dumper); // 25 Hz so grab a frame
+                video_dump_timer -= frame_time;
+            }
+        }
+
         match g_window.get_key(Key::Escape) {
             Action::Press | Action::Repeat => {
                 g_window.set_should_close(true);
@@ -296,5 +458,9 @@ fn main() {
         }
         // Put the stuff we've been drawing onto the display.
         g_window.swap_buffers();
+    }
+
+    if dump_video {
+        dumper.dump_video_frames();
     }
 }
