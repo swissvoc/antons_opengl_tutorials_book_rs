@@ -273,7 +273,7 @@ fn main() {
         glfw.poll_events();
 
         match g_window.get_key(Key::Space) {
-            Action::Press => {
+            Action::Press | Action::Repeat => {
                 println!("Screen captured.");
                 screen_capture();
             }
