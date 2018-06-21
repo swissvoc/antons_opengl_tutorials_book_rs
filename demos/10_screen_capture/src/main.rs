@@ -10,6 +10,7 @@ extern crate scan_fmt;
 mod gl_utils;
 mod graphics_math;
 mod obj_parser;
+mod screen;
 
 
 use glfw::{Action, Context, Key};
@@ -41,49 +42,6 @@ const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
 const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
 
 static mut PREVIOUS_SECONDS: f64 = 0.0;
-
-
-fn screen_capture() -> bool {
-    let height = unsafe { G_GL_HEIGHT as usize };
-    let width = unsafe { G_GL_WIDTH as usize };
-    let mut frame_buffer: Vec<u8> = vec![0; 3 * (width * height) as usize];
-    unsafe {
-        gl::ReadPixels(
-            0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, 
-            gl::RGB, gl::UNSIGNED_BYTE, 
-            frame_buffer.as_mut_ptr() as *mut GLvoid
-        );
-    }
-    
-    let width_in_bytes = 3 * width;
-    let half_height = height / 2;
-    for row in 0..half_height {
-        for col in 0..width_in_bytes {
-            let temp = frame_buffer[row * width_in_bytes + col];
-            frame_buffer[row * width_in_bytes + col] = frame_buffer[((height - row - 1) * width_in_bytes) + col];
-            frame_buffer[((height - row - 1) * width_in_bytes) + col] = temp;
-        }
-    }
-
-    let date = Utc::now();
-    let name = format!("screenshot_{}.png", date);
-    
-    let path = Path::new(&name);
-    let file = File::create(path).unwrap();
-    let buf_writer = BufWriter::new(file);
-    let mut encoder = png::Encoder::new(buf_writer, width as u32, height as u32);
-    encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
-    let mut png_writer = encoder.write_header().unwrap();
-    
-    println!("Writing {}", name);
-    
-    let result =  png_writer.write_image_data(&frame_buffer);
-    if result.is_err() {
-        eprintln!("ERROR: could not write screenshot file {}", name);
-    }
-
-    return true;
-}
 
 
 fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
@@ -144,6 +102,18 @@ fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
     }
 
     return true;
+}
+
+fn gl_capture_frame_buffer(buffer: &mut [u8]) -> bool {
+    unsafe {
+        gl::ReadPixels(
+            0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, 
+            gl::RGB, gl::UNSIGNED_BYTE, 
+            buffer.as_mut_ptr() as *mut GLvoid
+        );
+    }
+
+    true
 }
 
 fn main() {
@@ -275,7 +245,12 @@ fn main() {
         match g_window.get_key(Key::Space) {
             Action::Press | Action::Repeat => {
                 println!("Screen captured.");
-                screen_capture();
+                unsafe {    
+                    screen::capture(
+                        G_GL_HEIGHT as usize, G_GL_WIDTH as usize, G_GL_CHANNEL_DEPTH as usize, 
+                        &gl_capture_frame_buffer
+                    );
+                }
             }
             _ => {}
         }
@@ -338,10 +313,12 @@ fn main() {
             }
             _ => {}
         }
-        // update view matrix
+
+        // Update view matrix.
         if cam_moved {
-            mat_trans = Mat4::identity().translate(&math::vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2]))); // cam translation
-            mat_rot = Mat4::identity().rotate_y_deg(-cam_yaw);                 //
+            // Camera translation.
+            mat_trans = Mat4::identity().translate(&math::vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2])));
+            mat_rot = Mat4::identity().rotate_y_deg(-cam_yaw);
             view_mat = mat_rot * mat_trans;
             unsafe {
                 gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());

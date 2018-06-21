@@ -23,6 +23,7 @@ const G_GL_HEIGHT_DEFAULT: u32 = 480;
 
 pub static mut G_GL_WIDTH: u32 = 640;
 pub static mut G_GL_HEIGHT: u32 = 480;
+pub static mut G_GL_CHANNEL_DEPTH: u32 = 3;
 
 static mut PREVIOUS_SECONDS: f64 = 0.0;
 static mut FRAME_COUNT: usize = 0;
