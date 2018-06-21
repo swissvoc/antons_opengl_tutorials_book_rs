@@ -36,11 +36,8 @@ pub fn capture<F>(height: usize, width: usize, depth: usize, capture_func: &F) -
     encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
     let mut png_writer = encoder.write_header().unwrap();
     
-    println!("Writing {}", name);
-    
     let result =  png_writer.write_image_data(&image_buffer);
     if result.is_err() {
-        eprintln!("ERROR: could not write screenshot file {}", name);
         return false;
     }
 
