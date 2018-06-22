@@ -1,22 +1,30 @@
-pub fn capture() -> bool {
-    let height = unsafe { G_GL_HEIGHT as usize };
-    let width = unsafe { G_GL_WIDTH as usize };
-    let mut frame_buffer: Vec<u8> = vec![0; 3 * (width * height) as usize];
-    unsafe {
-        gl::ReadPixels(
-            0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, 
-            gl::RGB, gl::UNSIGNED_BYTE, 
-            frame_buffer.as_mut_ptr() as *mut GLvoid
-        );
-    }
+use png;
+use png::HasParameters;
+
+use chrono::prelude::Utc;
+
+use std::path::Path;
+use std::fs::File;
+use std::io::BufWriter;
+
+
+pub fn capture<F>(height: usize, width: usize, depth: usize, capture_func: &F) -> bool 
+    where F: Fn(&mut [u8]) -> bool
+{
+    let mut image_buffer: Vec<u8> = vec![0; (height * width * depth) as usize];
     
-    let width_in_bytes = 3 * width;
+    // Capture the buffer data from the source and write it into the 
+    // image buffer.
+    capture_func(&mut image_buffer);
+    
+    // Check results of cfunc call here.
+    let width_in_bytes = depth * width;
     let half_height = height / 2;
     for row in 0..half_height {
         for col in 0..width_in_bytes {
-            let temp = frame_buffer[row * width_in_bytes + col];
-            frame_buffer[row * width_in_bytes + col] = frame_buffer[((height - row - 1) * width_in_bytes) + col];
-            frame_buffer[((height - row - 1) * width_in_bytes) + col] = temp;
+            let temp = image_buffer[row * width_in_bytes + col];
+            image_buffer[row * width_in_bytes + col] = image_buffer[((height - row - 1) * width_in_bytes) + col];
+            image_buffer[((height - row - 1) * width_in_bytes) + col] = temp;
         }
     }
 
@@ -30,12 +38,10 @@ pub fn capture() -> bool {
     encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
     let mut png_writer = encoder.write_header().unwrap();
     
-    println!("Writing {}", name);
-    
-    let result =  png_writer.write_image_data(&frame_buffer);
+    let result =  png_writer.write_image_data(&image_buffer);
     if result.is_err() {
-        eprintln!("ERROR: could not write screenshot file {}", name);
+        return false;
     }
 
-    return true;
+    true
 }

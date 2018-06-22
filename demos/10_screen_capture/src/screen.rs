@@ -13,6 +13,8 @@ pub fn capture<F>(height: usize, width: usize, depth: usize, capture_func: &F) -
 {
     let mut image_buffer: Vec<u8> = vec![0; (height * width * depth) as usize];
     
+    // Capture the buffer data from the source and write it into the 
+    // image buffer.
     capture_func(&mut image_buffer);
     
     // Check results of cfunc call here.
