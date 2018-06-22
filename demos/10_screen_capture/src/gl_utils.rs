@@ -35,6 +35,25 @@ pub fn glubyte_ptr_to_string(cstr: *const GLubyte) -> String {
     }
 }
 
+pub fn gl_type_to_string(gl_type: GLenum) -> &'static str {
+    match gl_type {
+        gl::BOOL => "bool",
+        gl::INT => "int",
+        gl::FLOAT => "float",
+        gl::FLOAT_VEC2 => "vec2",
+        gl::FLOAT_VEC3 => "vec3",
+        gl::FLOAT_VEC4 => "vec4",
+        gl::FLOAT_MAT2 => "mat2",
+        gl::FLOAT_MAT3 => "mat3",
+        gl::FLOAT_MAT4 => "mat4",
+        gl::SAMPLER_2D => "sampler2D",
+        gl::SAMPLER_3D => "sampler3D",
+        gl::SAMPLER_CUBE => "samplerCube",
+        gl::SAMPLER_2D_SHADOW => "sampler2DShadow",
+        _ => "other"
+    }
+}
+
 // We will tell GLFW to run this function whenever the framebuffer size is changed.
 fn glfw_framebuffer_size_callback(window: &mut glfw::Window, width: u32, height: u32) {
     unsafe {
@@ -107,7 +126,13 @@ pub fn log_gl_params(logger: &Logger) {
     }
 }
 
-pub fn start_gl(logger: &Logger) -> Result<(glfw::Glfw, glfw::Window, Receiver<(f64, glfw::WindowEvent)>), String> {
+pub struct GLContext {
+    pub glfw: glfw::Glfw,
+    pub window: glfw::Window,
+    pub events: Receiver<(f64, glfw::WindowEvent)>,
+}
+
+pub fn start_gl(logger: &Logger) -> Result<GLContext, String> {
     // Start a GL context and OS window using the GLFW helper library.
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
@@ -146,7 +171,11 @@ pub fn start_gl(logger: &Logger) -> Result<(glfw::Glfw, glfw::Window, Receiver<(
     logger.log(&format!("renderer: {}\nversion: {}\n", renderer, version));
     log_gl_params(logger);
 
-    Ok((glfw, window, events))
+    Ok(GLContext { 
+        glfw: glfw, 
+        window: window, 
+        events: events 
+    })
 }
 
 // We will use this function to update the window title with a frame rate.
@@ -164,25 +193,6 @@ pub fn _update_fps_counter(glfw: &glfw::Glfw, window: &mut glfw::Window) {
         }
 
         FRAME_COUNT += 1;
-    }
-}
-
-pub fn gl_type_to_string(gl_type: GLenum) -> &'static str {
-    match gl_type {
-        gl::BOOL => "bool",
-        gl::INT => "int",
-        gl::FLOAT => "float",
-        gl::FLOAT_VEC2 => "vec2",
-        gl::FLOAT_VEC3 => "vec3",
-        gl::FLOAT_VEC4 => "vec4",
-        gl::FLOAT_MAT2 => "mat2",
-        gl::FLOAT_MAT3 => "mat3",
-        gl::FLOAT_MAT4 => "mat4",
-        gl::SAMPLER_2D => "sampler2D",
-        gl::SAMPLER_3D => "sampler3D",
-        gl::SAMPLER_CUBE => "samplerCube",
-        gl::SAMPLER_2D_SHADOW => "sampler2DShadow",
-        _ => "other"
     }
 }
 

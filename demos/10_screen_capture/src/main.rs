@@ -114,7 +114,7 @@ fn gl_capture_frame_buffer(buffer: &mut [u8]) -> bool {
 fn main() {
     let logger = restart_gl_log(GL_LOG_FILE);
     // start GL context and O/S window using the GLFW helper library
-    let (mut glfw, mut g_window, mut _g_events) = start_gl(&logger).unwrap();
+    let mut context = start_gl(&logger).unwrap();
 
     // tell GL to only draw onto a pixel if the shape is closer to the viewer
     unsafe {
@@ -215,14 +215,14 @@ fn main() {
         gl::FrontFace(gl::CCW);    // GL_CCW for counter clock-wise
     }
 
-    while !g_window.should_close() {
-        let current_seconds = glfw.get_time();
+    while !context.window.should_close() {
+        let current_seconds = context.glfw.get_time();
         let elapsed_seconds = unsafe { current_seconds - PREVIOUS_SECONDS };
         unsafe {
             PREVIOUS_SECONDS = current_seconds;
         }
 
-        _update_fps_counter(&glfw, &mut g_window);
+        _update_fps_counter(&context.glfw, &mut context.window);
         unsafe {
             // wipe the drawing surface clear
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -235,9 +235,9 @@ fn main() {
             // update other events like input handling
         }
 
-        glfw.poll_events();
+        context.glfw.poll_events();
 
-        match g_window.get_key(Key::PrintScreen) {
+        match context.window.get_key(Key::PrintScreen) {
             Action::Press | Action::Repeat => {
                 println!("Screen captured.");
                 unsafe {    
@@ -252,56 +252,56 @@ fn main() {
 
         // control keys
         let mut cam_moved = false;
-        match g_window.get_key(Key::A) {
+        match context.window.get_key(Key::A) {
             Action::Press | Action::Repeat => {
                 cam_pos[0] -= cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::D) {
+        match context.window.get_key(Key::D) {
             Action::Press | Action::Repeat => {
                 cam_pos[0] += cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Up) {
+        match context.window.get_key(Key::Up) {
             Action::Press | Action::Repeat => {
                 cam_pos[1] += cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Down) {
+        match context.window.get_key(Key::Down) {
             Action::Press | Action::Repeat => {
                 cam_pos[1] -= cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::W) {
+        match context.window.get_key(Key::W) {
             Action::Press | Action::Repeat => {
                 cam_pos[2] -= cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::S) {
+        match context.window.get_key(Key::S) {
             Action::Press | Action::Repeat => {
                 cam_pos[2] += cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Left) {
+        match context.window.get_key(Key::Left) {
             Action::Press | Action::Repeat => {
                 cam_yaw += cam_yaw_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Right) {
+        match context.window.get_key(Key::Right) {
             Action::Press | Action::Repeat => {
                 cam_yaw -= cam_yaw_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
@@ -320,13 +320,13 @@ fn main() {
             }
         }
 
-        match g_window.get_key(Key::Escape) {
+        match context.window.get_key(Key::Escape) {
             Action::Press | Action::Repeat => {
-                g_window.set_should_close(true);
+                context.window.set_should_close(true);
             }
             _ => {}
         }
         // Put the stuff we've been drawing onto the display.
-        g_window.swap_buffers();
+        context.window.swap_buffers();
     }
 }

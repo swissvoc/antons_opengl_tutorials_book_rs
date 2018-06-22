@@ -14,13 +14,18 @@ impl Logger {
         }
     }
 
+    ///
+    /// Start a new log file with the time and date at the top.
+    ///
     pub fn from_log_file(log_file: &str) -> Logger {
         Logger {
             log_file: String::from(log_file),
         }
     }
 
+    ///
     /// Start a new log file with the time and date at the top.
+    ///
     pub fn restart(&self) -> bool {
         let file = File::create(&self.log_file);
         if file.is_err() {
@@ -40,7 +45,9 @@ impl Logger {
         return true;
     }
 
-    /// Add a message to the log file.
+    ///
+    /// Write a message to the log file.
+    ///
     pub fn log(&self, message: &str) -> bool {
         let file = OpenOptions::new().write(true).append(true).open(&self.log_file);
         if file.is_err() {
@@ -54,7 +61,9 @@ impl Logger {
         return true;
     }
 
-    /// Same as gl_log except also prints to stderr.
+    ///
+    /// Write a message to the log file, and also write it to stderr.
+    ///
     pub fn log_err(&self, message: &str) -> bool {
         let file = OpenOptions::new().write(true).append(true).open(&self.log_file);
         if file.is_err() {
