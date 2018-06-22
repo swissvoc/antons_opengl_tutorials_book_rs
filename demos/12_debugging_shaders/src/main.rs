@@ -268,7 +268,7 @@ fn main() {
             gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
             // draw points 0-3 from the currently bound VAO with current in-use shader
-            gl::DrawArrays(gl::TRIANGLES, 0, 6);
+            gl::DrawArrays(gl::TRIANGLES, 0, g_point_count as i32);
             // update other events like input handling
         }
 
