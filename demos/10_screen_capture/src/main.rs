@@ -234,7 +234,7 @@ fn main() {
 
         glfw.poll_events();
 
-        match g_window.get_key(Key::Space) {
+        match g_window.get_key(Key::PrintScreen) {
             Action::Press | Action::Repeat => {
                 println!("Screen captured.");
                 unsafe {    
