@@ -20,13 +20,8 @@ const MAX_SHADER_LENGTH: usize = 262144;
 // Keep track of window size for things like the viewport and the mouse cursor
 const G_GL_WIDTH_DEFAULT: u32 = 640;
 const G_GL_HEIGHT_DEFAULT: u32 = 480;
+const G_GL_CHANNEL_DEPTH_DEFAULT: u32 = 3;
 
-pub static mut G_GL_WIDTH: u32 = 640;
-pub static mut G_GL_HEIGHT: u32 = 480;
-pub static mut G_GL_CHANNEL_DEPTH: u32 = 3;
-
-static mut PREVIOUS_SECONDS: f64 = 0.0;
-static mut FRAME_COUNT: usize = 0;
 
 #[inline]
 pub fn glubyte_ptr_to_string(cstr: *const GLubyte) -> String {
@@ -55,6 +50,7 @@ pub fn gl_type_to_string(gl_type: GLenum) -> &'static str {
 }
 
 // We will tell GLFW to run this function whenever the framebuffer size is changed.
+/*
 fn glfw_framebuffer_size_callback(window: &mut glfw::Window, width: u32, height: u32) {
     unsafe {
         G_GL_WIDTH = width;
@@ -63,6 +59,7 @@ fn glfw_framebuffer_size_callback(window: &mut glfw::Window, width: u32, height:
     println!("width {} height {}", width, height);
     /* Update any perspective matrices used here */
 }
+*/
 
 /* we will tell GLFW to run this function whenever it finds an error */
 fn glfw_error_callback(logger: &Logger, error: glfw::Error, description: String, error_count: &Cell<usize>) {
@@ -76,8 +73,10 @@ pub fn restart_gl_log(log_file: &str) -> Logger {
 }
 
 
-// We can use a function like this to print some GL capabilities of our adapter
-// to the log file. This is handy if we want to debug problems on other people's computers.
+///
+/// Print out the GL capabilities on a local machine. This is handy for debugging
+/// OpenGL program problems on other people's machines.
+///
 pub fn log_gl_params(logger: &Logger) {
     let params: [GLenum; 12] = [
         gl::MAX_COMBINED_TEXTURE_IMAGE_UNITS,
@@ -126,12 +125,24 @@ pub fn log_gl_params(logger: &Logger) {
     }
 }
 
+///
+/// The application-side OpenGL data and program state.
+///
 pub struct GLContext {
     pub glfw: glfw::Glfw,
     pub window: glfw::Window,
     pub events: Receiver<(f64, glfw::WindowEvent)>,
+    pub width: u32,
+    pub height: u32,
+    pub channel_depth: u32,
+    pub elapsed_time_seconds: f64,
+    pub framerate_time_seconds: f64,
+    pub frame_count: u32,
 }
 
+///
+/// Initialize a new OpenGL context and load a new GLFW window. 
+///
 pub fn start_gl(logger: &Logger) -> Result<GLContext, String> {
     // Start a GL context and OS window using the GLFW helper library.
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -171,28 +182,36 @@ pub fn start_gl(logger: &Logger) -> Result<GLContext, String> {
     logger.log(&format!("renderer: {}\nversion: {}\n", renderer, version));
     log_gl_params(logger);
 
-    Ok(GLContext { 
+    Ok(GLContext {
         glfw: glfw, 
         window: window, 
-        events: events 
+        events: events,
+        width: G_GL_WIDTH_DEFAULT,
+        height: G_GL_HEIGHT_DEFAULT,
+        channel_depth: G_GL_CHANNEL_DEPTH_DEFAULT,
+        elapsed_time_seconds: 0.0,
+        framerate_time_seconds: 0.0,
+        frame_count: 0,
     })
 }
 
-// We will use this function to update the window title with a frame rate.
-pub fn update_fps_counter(glfw: &glfw::Glfw, window: &mut glfw::Window) {
+///
+/// Update the framerate and display in the window titlebar.
+///
+pub fn update_fps_counter(context: &mut GLContext) {
     unsafe {        
-        let current_seconds = glfw.get_time();
-        let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
-        if elapsed_seconds > 0.25 {
-            PREVIOUS_SECONDS = current_seconds;
-            let fps = FRAME_COUNT as f64 / elapsed_seconds;
+        let current_time_seconds = context.glfw.get_time();
+        let delta_seconds = current_time_seconds - context.elapsed_time_seconds;
+        if delta_seconds > 0.25 {
+            context.elapsed_time_seconds = current_time_seconds;
+            let fps = context.frame_count as f64 / delta_seconds;
             let mut title: String = String::new();
             write!(&mut title, "OpenGL @ FPS: {:.2}", fps).unwrap();
-            window.set_title(&title);
-            FRAME_COUNT = 0;
+            context.window.set_title(&title);
+            context.frame_count = 0;
         }
 
-        FRAME_COUNT += 1;
+        context.frame_count += 1;
     }
 }
 
@@ -254,7 +273,9 @@ fn create_shader(logger: &Logger, file_name: &str, shader: &mut GLuint, gl_type:
     return true;
 }
 
-/* print errors in shader compilation */
+///
+/// Print out the errors encountered during shader compilation.
+/// 
 pub fn print_shader_info_log(shader_index: GLuint) {
     let max_length = 2048;
     let mut actual_length = 0;
@@ -271,7 +292,10 @@ pub fn print_shader_info_log(shader_index: GLuint) {
     println!();
 }
 
-/* print errors in shader linking */
+
+///
+/// Print out the errors encountered during shader linking.
+///
 pub fn print_programme_info_log(sp: GLuint) {
     let max_length = 2048;
     let mut actual_length = 0;
@@ -288,7 +312,9 @@ pub fn print_programme_info_log(sp: GLuint) {
     println!();
 }
 
-/* validate shader */
+///
+/// Validate a shader.
+///
 pub fn is_programme_valid(logger: &Logger, sp: GLuint) -> bool {
     let mut params = -1;
     unsafe {
@@ -307,6 +333,9 @@ pub fn is_programme_valid(logger: &Logger, sp: GLuint) -> bool {
     return true;
 }
 
+///
+/// Compile and link a shader program.
+///
 pub fn create_programme(logger: &Logger, vertex_shader: GLuint, fragment_shader: GLuint, programme: &mut GLuint) -> bool {
     unsafe {
         *programme = gl::CreateProgram();
@@ -337,6 +366,9 @@ pub fn create_programme(logger: &Logger, vertex_shader: GLuint, fragment_shader:
     }
 }
 
+///
+/// Compile and link a shader program.
+///
 pub fn create_programme_from_files(logger: &Logger, vert_file_name: &str, frag_file_name: &str) -> GLuint {
     let mut vertex_shader: GLuint = 0;
     let mut fragment_shader: GLuint = 0;
@@ -350,8 +382,10 @@ pub fn create_programme_from_files(logger: &Logger, vert_file_name: &str, frag_f
 }
 
 
-/* print absolutely everything about a shader - only useful if you get really
-stuck wondering why a shader isn't working properly */
+///
+/// Print absolutely everything about a shader. This is only useful if you get really
+/// stuck wondering why a shader isn't working properly.
+///
 pub fn print_all(sp: GLuint) {
     let mut params = -1;
 

@@ -99,10 +99,10 @@ fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
     return true;
 }
 
-fn gl_capture_frame_buffer(buffer: &mut [u8]) -> bool {
+fn gl_capture_frame_buffer(context: &GLContext, buffer: &mut [u8]) -> bool {
     unsafe {
         gl::ReadPixels(
-            0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, 
+            0, 0, context.width as i32, context.height as i32, 
             gl::RGB, gl::UNSIGNED_BYTE, 
             buffer.as_mut_ptr() as *mut GLvoid
         );
@@ -113,13 +113,14 @@ fn gl_capture_frame_buffer(buffer: &mut [u8]) -> bool {
 
 fn main() {
     let logger = restart_gl_log(GL_LOG_FILE);
-    // start GL context and O/S window using the GLFW helper library
     let mut context = start_gl(&logger).unwrap();
 
-    // tell GL to only draw onto a pixel if the shape is closer to the viewer
+    // Instruct GL to only draw onto a pixel if the shape is closer to the viewer.
     unsafe {
-        gl::Enable(gl::DEPTH_TEST); // enable depth-testing
-        gl::DepthFunc(gl::LESS);    // depth-testing interprets a smaller value as "closer"
+        // Enable depth testing.
+        gl::Enable(gl::DEPTH_TEST);
+        // Depth testing interprets a smaller value as closer to the camera.
+        gl::DepthFunc(gl::LESS);
     }
 
     /* OTHER STUFF GOES HERE NEXT */
@@ -128,7 +129,6 @@ fn main() {
          0.5,  0.5, 0.0, -0.5,  0.5, 0.0, -0.5, -0.5, 0.0
     ];
 
-    // 2^16 == 65536
     let texcoords: [GLfloat; 12] = [
         0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0
     ];
@@ -170,14 +170,14 @@ fn main() {
 
     let shader_programme = create_programme_from_files(&logger, VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
 
-    // input variables
+    // Camera model input variables.
     let near = 0.1;                                  // clipping plane
     let far = 100.0;                                 // clipping plane
     let fov = 67.0;                                  // convert 67 degrees to radians
-    let aspect = unsafe { G_GL_WIDTH as f32 / G_GL_HEIGHT as f32 }; // aspect ratio
+    let aspect = unsafe { context.width as f32 / context.height as f32 }; // aspect ratio
     let proj_mat = Mat4::perspective(fov, aspect, near, far);
 
-    // matrix components
+    // View matrix components.
     let cam_speed: GLfloat = 1.0;             // 1 unit per second
     let cam_yaw_speed: GLfloat = 10.0;        // 10 degrees per second
     let mut cam_pos: [GLfloat; 3] = [0.0, 0.0, 2.0]; // don't start at zero, or we will be too close
@@ -204,7 +204,7 @@ fn main() {
     }
     assert!(proj_mat_location != -1);
 
-    // load texture
+    // Load texture.
     let mut tex: GLuint = 0;
     load_texture(TEXTURE_FILE, &mut tex);
     assert!(tex != 0);
@@ -222,17 +222,16 @@ fn main() {
             PREVIOUS_SECONDS = current_seconds;
         }
 
-        update_fps_counter(&context.glfw, &mut context.window);
+        update_fps_counter(&mut context);
         unsafe {
-            // wipe the drawing surface clear
+            // Clear the drawing canvas.
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-            gl::Viewport(0, 0, G_GL_HEIGHT as i32, G_GL_HEIGHT as i32);
+            gl::Viewport(0, 0, context.width as i32, context.height as i32);
 
             gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
-            // draw points 0-3 from the currently bound VAO with current in-use shader
+            // Draw points 0-3 from the currently bound VAO with current in-use shader.
             gl::DrawArrays(gl::TRIANGLES, 0, 6);
-            // update other events like input handling
         }
 
         context.glfw.poll_events();
@@ -242,15 +241,16 @@ fn main() {
                 println!("Screen captured.");
                 unsafe {    
                     screen::capture(
-                        G_GL_HEIGHT as usize, G_GL_WIDTH as usize, G_GL_CHANNEL_DEPTH as usize, 
-                        &gl_capture_frame_buffer
+                        context.height as usize, context.width as usize, context.channel_depth as usize, 
+                        &|buf| { gl_capture_frame_buffer(&context, buf) }
                     ).unwrap();
                 }
             }
             _ => {}
         }
 
-        // control keys
+        // Process I/O events.
+        // Camera control keys.
         let mut cam_moved = false;
         match context.window.get_key(Key::A) {
             Action::Press | Action::Repeat => {
@@ -320,13 +320,15 @@ fn main() {
             }
         }
 
+        // Check whether the user signaled GLFW to close the window.
         match context.window.get_key(Key::Escape) {
             Action::Press | Action::Repeat => {
                 context.window.set_should_close(true);
             }
             _ => {}
         }
-        // Put the stuff we've been drawing onto the display.
+
+        // Display the next frame.
         context.window.swap_buffers();
     }
 }
