@@ -15,9 +15,11 @@ pub fn capture<F>(height: usize, width: usize, depth: usize, capture_func: &F) -
     
     // Capture the buffer data from the source and write it into the 
     // image buffer.
-    capture_func(&mut image_buffer);
-    
-    // Check results of cfunc call here.
+    let result = capture_func(&mut image_buffer);
+    if !result {
+        return false;
+    }
+
     let width_in_bytes = depth * width;
     let half_height = height / 2;
     for row in 0..half_height {
