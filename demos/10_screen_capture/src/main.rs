@@ -241,7 +241,7 @@ fn main() {
                     screen::capture(
                         G_GL_HEIGHT as usize, G_GL_WIDTH as usize, G_GL_CHANNEL_DEPTH as usize, 
                         &gl_capture_frame_buffer
-                    );
+                    ).unwrap();
                 }
             }
             _ => {}
