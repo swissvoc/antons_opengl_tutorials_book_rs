@@ -346,7 +346,7 @@ pub fn create_programme(logger: &Logger, vertex_shader: GLuint, fragment_shader:
         gl::AttachShader(*programme, fragment_shader);
 
         // Link the shader programme. If binding input attributes do that before linking.
-        gl::LinkProgram( *programme );
+        gl::LinkProgram(*programme);
         let mut params = -1;
         gl::GetProgramiv(*programme, gl::LINK_STATUS, &mut params);
         if params != gl::TRUE as i32 {

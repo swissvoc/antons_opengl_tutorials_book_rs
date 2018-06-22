@@ -10,6 +10,7 @@ extern crate scan_fmt;
 mod gl_utils;
 mod graphics_math;
 mod obj_parser;
+mod logger;
 
 
 use glfw::{Action, Context, Key};
@@ -20,19 +21,19 @@ use stb_image::image::LoadResult;
 
 use png::HasParameters;
 
-use chrono::prelude::Utc;
-
 use std::mem;
 use std::ptr;
 use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
+use std::process;
 
 use gl_utils::*;
 
 use graphics_math as math;
 use math::Mat4;
 
+const GL_LOG_FILE: &str = "gl.log";
 const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
 const TEXTURE_FILE: &str = "src/skulluvmap.png";
@@ -42,8 +43,6 @@ const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
 
 const G_VIDEO_SECONDS_TOTAL: usize = 10;
 const G_VIDEO_FPS: usize = 25;
-
-static mut PREVIOUS_SECONDS: f64 = 0.0;
 
 
 struct FrameBufferDumper {
@@ -113,11 +112,11 @@ impl FrameBufferDumper {
     }
 }
 
-fn grab_video_frame(dumper: &mut FrameBufferDumper) {
+fn grab_video_frame(context: &mut GLContext, dumper: &mut FrameBufferDumper) {
     // Copy the frame buffer contents into into a 24-bit RGB image.
     unsafe {
         gl::ReadPixels(
-            0, 0, G_GL_WIDTH as i32, G_GL_HEIGHT as i32, gl::RGB, gl::UNSIGNED_BYTE,
+            0, 0, context.width as i32, context.height as i32, gl::RGB, gl::UNSIGNED_BYTE,
             dumper.make_new_frame().as_mut_ptr() as *mut GLvoid
         );
     }
@@ -184,9 +183,16 @@ fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
 }
 
 fn main() {
-    restart_gl_log();
+    let logger = restart_gl_log(GL_LOG_FILE);
     // start GL context and O/S window using the GLFW helper library
-    let (mut glfw, mut g_window, mut _g_events) = start_gl().unwrap();
+    let mut context = match start_gl(&logger) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("Failed to Initialize OpenGL context. Got error:");
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    };
 
     // tell GL to only draw onto a pixel if the shape is closer to the viewer
     unsafe {
@@ -240,13 +246,13 @@ fn main() {
     }
     assert!(vao != 0);
 
-    let shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
+    let shader_programme = create_programme_from_files(&logger, VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
 
     // input variables
     let near = 0.1;                                  // clipping plane
     let far = 100.0;                                 // clipping plane
     let fov = 67.0;                                  // convert 67 degrees to radians
-    let aspect = unsafe { G_GL_WIDTH as f32 / G_GL_HEIGHT as f32 }; // aspect ratio
+    let aspect = context.width as f32 / context.height as f32; // aspect ratio
     let proj_mat = Mat4::perspective(fov, aspect, near, far);
 
     // matrix components
@@ -292,35 +298,31 @@ fn main() {
     let mut video_timer = 0.0;      // time video has been recording
     let mut video_dump_timer = 0.0; // timer for next frame grab
     let frame_time = 0.04;          // 1/25 seconds of time
-    let mut dumper = unsafe {
-        FrameBufferDumper::new(
-            G_VIDEO_SECONDS_TOTAL, G_VIDEO_FPS,
-            G_GL_WIDTH as usize, G_GL_HEIGHT as usize, 3
-        )
-    };
+    let mut dumper = FrameBufferDumper::new(
+        G_VIDEO_SECONDS_TOTAL, G_VIDEO_FPS,
+        context.width as usize, context.height as usize, context.channel_depth as usize
+    );
 
-    while !g_window.should_close() {
-        let current_seconds = glfw.get_time();
-        let elapsed_seconds = unsafe { current_seconds - PREVIOUS_SECONDS };
-        unsafe {
-            PREVIOUS_SECONDS = current_seconds;
-        }
+    while !context.window.should_close() {
+        let current_seconds = context.glfw.get_time();
+        let delta_seconds = current_seconds - context.elapsed_time_seconds;
+        context.elapsed_time_seconds = current_seconds;
 
         if dump_video {
-            // elapsed_seconds is seconds since last loop iteration
-            video_timer += elapsed_seconds;
-            video_dump_timer += elapsed_seconds;
+            // delta_seconds is seconds since last loop iteration
+            video_timer += delta_seconds;
+            video_dump_timer += delta_seconds;
             // only record 10s of video, then quit
             if video_timer > 10.0 {
                 break;
             }
         }
 
-        _update_fps_counter(&glfw, &mut g_window);
+        update_fps_counter(&mut context);
         unsafe {
             // wipe the drawing surface clear
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-            gl::Viewport(0, 0, G_GL_HEIGHT as i32, G_GL_HEIGHT as i32);
+            gl::Viewport(0, 0, context.width as i32, context.height as i32);
 
             gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
@@ -329,9 +331,9 @@ fn main() {
             // update other events like input handling
         }
 
-        glfw.poll_events();
+        context.glfw.poll_events();
 
-        match g_window.get_key(Key::PrintScreen) {
+        match context.window.get_key(Key::PrintScreen) {
             Action::Press | Action::Repeat => {
                 dump_video = true;
                 println!("dump_video set to true.");
@@ -341,58 +343,58 @@ fn main() {
 
         // control keys
         let mut cam_moved = false;
-        match g_window.get_key(Key::A) {
+        match context.window.get_key(Key::A) {
             Action::Press | Action::Repeat => {
-                cam_pos[0] -= cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[0] -= cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::D) {
+        match context.window.get_key(Key::D) {
             Action::Press | Action::Repeat => {
-                cam_pos[0] += cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[0] += cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Up) {
+        match context.window.get_key(Key::Up) {
             Action::Press | Action::Repeat => {
-                cam_pos[1] += cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[1] += cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Down) {
+        match context.window.get_key(Key::Down) {
             Action::Press | Action::Repeat => {
-                cam_pos[1] -= cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[1] -= cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::W) {
+        match context.window.get_key(Key::W) {
             Action::Press | Action::Repeat => {
-                cam_pos[2] -= cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[2] -= cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::S) {
+        match context.window.get_key(Key::S) {
             Action::Press | Action::Repeat => {
-                cam_pos[2] += cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[2] += cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Left) {
+        match context.window.get_key(Key::Left) {
             Action::Press | Action::Repeat => {
-                cam_yaw += cam_yaw_speed * (elapsed_seconds as GLfloat);
+                cam_yaw += cam_yaw_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Right) {
+        match context.window.get_key(Key::Right) {
             Action::Press | Action::Repeat => {
-                cam_yaw -= cam_yaw_speed * (elapsed_seconds as GLfloat);
+                cam_yaw -= cam_yaw_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
@@ -409,19 +411,19 @@ fn main() {
 
         if dump_video { // check if recording mode is enabled
             while video_dump_timer > frame_time {
-                grab_video_frame(&mut dumper); // 25 Hz so grab a frame
+                grab_video_frame(&mut context, &mut dumper); // 25 Hz so grab a frame
                 video_dump_timer -= frame_time;
             }
         }
 
-        match g_window.get_key(Key::Escape) {
+        match context.window.get_key(Key::Escape) {
             Action::Press | Action::Repeat => {
-                g_window.set_should_close(true);
+                context.window.set_should_close(true);
             }
             _ => {}
         }
         // Put the stuff we've been drawing onto the display.
-        g_window.swap_buffers();
+        context.window.swap_buffers();
     }
 
     if dump_video {
