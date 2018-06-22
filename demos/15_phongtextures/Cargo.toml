@@ -1,5 +1,5 @@
 [package]
-name = "debugging_shaders"
+name = "phong_textures"
 version = "0.1.0"
 authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 
