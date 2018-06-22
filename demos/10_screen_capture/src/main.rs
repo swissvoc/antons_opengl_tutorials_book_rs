@@ -21,6 +21,9 @@ use stb_image::image::LoadResult;
 
 use gl_utils::*;
 
+use std::mem;
+use std::ptr;
+
 use graphics_math as math;
 use math::Mat4;
 
@@ -50,7 +53,6 @@ fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
 
     let width = image_data.width;
     let height = image_data.height;
-    let depth = image_data.depth;
 
     // Check that the image size is a power of two.
     if (width & (width - 1)) != 0 || (height & (height - 1)) != 0 {
