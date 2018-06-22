@@ -204,8 +204,7 @@ pub fn update_fps_counter(context: &mut GLContext) {
     if delta_seconds > 0.25 {
         context.framerate_time_seconds = current_time_seconds;
         let fps = context.frame_count as f64 / delta_seconds;
-        let mut title: String = String::new();
-        write!(&mut title, "OpenGL @ FPS: {:.2}", fps).unwrap();
+        let title = format!("OpenGL @ FPS: {:.2}", fps);
         context.window.set_title(&title);
         context.frame_count = 0;
     }
