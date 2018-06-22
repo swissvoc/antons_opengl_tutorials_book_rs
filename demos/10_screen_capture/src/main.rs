@@ -37,8 +37,6 @@ const TEXTURE_FILE: &str = "src/skulluvmap.png";
 const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
 const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
 
-static mut PREVIOUS_SECONDS: f64 = 0.0;
-
 
 fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
     let force_channels = 4;
@@ -210,9 +208,9 @@ fn main() {
     assert!(tex != 0);
 
     unsafe {
-        gl::Enable(gl::CULL_FACE); // cull face
-        gl::CullFace(gl::BACK);    // cull back face
-        gl::FrontFace(gl::CCW);    // GL_CCW for counter clock-wise
+        gl::Enable(gl::CULL_FACE);
+        gl::CullFace(gl::BACK);
+        gl::FrontFace(gl::CCW);
     }
 
     while !context.window.should_close() {

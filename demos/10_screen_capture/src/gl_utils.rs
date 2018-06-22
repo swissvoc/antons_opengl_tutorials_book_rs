@@ -161,7 +161,7 @@ pub fn start_gl(logger: &Logger) -> Result<GLContext, String> {
     glfw.window_hint(glfw::WindowHint::Samples(Some(4)));
 
     let (mut window, events) = glfw.create_window(
-        G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Vectors And Matrices", glfw::WindowMode::Windowed
+        G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Screen Capture", glfw::WindowMode::Windowed
     )
     .expect("Failed to create GLFW window.");
 
@@ -200,9 +200,9 @@ pub fn start_gl(logger: &Logger) -> Result<GLContext, String> {
 ///
 pub fn update_fps_counter(context: &mut GLContext) {     
     let current_time_seconds = context.glfw.get_time();
-    let delta_seconds = current_time_seconds - context.elapsed_time_seconds;
+    let delta_seconds = current_time_seconds - context.framerate_time_seconds;
     if delta_seconds > 0.25 {
-        context.elapsed_time_seconds = current_time_seconds;
+        context.framerate_time_seconds = current_time_seconds;
         let fps = context.frame_count as f64 / delta_seconds;
         let mut title: String = String::new();
         write!(&mut title, "OpenGL @ FPS: {:.2}", fps).unwrap();
