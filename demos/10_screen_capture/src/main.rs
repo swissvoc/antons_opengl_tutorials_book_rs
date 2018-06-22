@@ -217,10 +217,8 @@ fn main() {
 
     while !context.window.should_close() {
         let current_seconds = context.glfw.get_time();
-        let elapsed_seconds = unsafe { current_seconds - PREVIOUS_SECONDS };
-        unsafe {
-            PREVIOUS_SECONDS = current_seconds;
-        }
+        let delta_seconds = current_seconds - context.elapsed_time_seconds;
+        context.elapsed_time_seconds = current_seconds;
 
         update_fps_counter(&mut context);
         unsafe {
@@ -252,56 +250,56 @@ fn main() {
         let mut cam_moved = false;
         match context.window.get_key(Key::A) {
             Action::Press | Action::Repeat => {
-                cam_pos[0] -= cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[0] -= cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
         match context.window.get_key(Key::D) {
             Action::Press | Action::Repeat => {
-                cam_pos[0] += cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[0] += cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
         match context.window.get_key(Key::Up) {
             Action::Press | Action::Repeat => {
-                cam_pos[1] += cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[1] += cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
         match context.window.get_key(Key::Down) {
             Action::Press | Action::Repeat => {
-                cam_pos[1] -= cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[1] -= cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
         match context.window.get_key(Key::W) {
             Action::Press | Action::Repeat => {
-                cam_pos[2] -= cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[2] -= cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
         match context.window.get_key(Key::S) {
             Action::Press | Action::Repeat => {
-                cam_pos[2] += cam_speed * (elapsed_seconds as GLfloat);
+                cam_pos[2] += cam_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
         match context.window.get_key(Key::Left) {
             Action::Press | Action::Repeat => {
-                cam_yaw += cam_yaw_speed * (elapsed_seconds as GLfloat);
+                cam_yaw += cam_yaw_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
         match context.window.get_key(Key::Right) {
             Action::Press | Action::Repeat => {
-                cam_yaw -= cam_yaw_speed * (elapsed_seconds as GLfloat);
+                cam_yaw -= cam_yaw_speed * (delta_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}

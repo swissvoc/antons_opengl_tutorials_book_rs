@@ -9,7 +9,7 @@ use std::string::String;
 use std::ffi::CStr;
 use std::ptr;
 use std::fs::File;
-use std::io::{Read, Write, BufReader};
+use std::io::{Read, BufReader};
 use std::fmt::Write as FWrite;
 use std::cell::Cell;
 use std::sync::mpsc::Receiver;
