@@ -24,6 +24,7 @@ use gl_utils::*;
 
 use std::mem;
 use std::ptr;
+use std::process;
 
 use graphics_math as math;
 use math::Mat4;
@@ -111,7 +112,14 @@ fn gl_capture_frame_buffer(context: &GLContext, buffer: &mut [u8]) -> bool {
 
 fn main() {
     let logger = restart_gl_log(GL_LOG_FILE);
-    let mut context = start_gl(&logger).unwrap();
+    let mut context = match start_gl(&logger) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("Failed to Initialize OpenGL context. Got error:");
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    };
 
     // Instruct GL to only draw onto a pixel if the shape is closer to the viewer.
     unsafe {

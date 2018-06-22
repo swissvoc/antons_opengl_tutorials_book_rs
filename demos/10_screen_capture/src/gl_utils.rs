@@ -49,19 +49,20 @@ pub fn gl_type_to_string(gl_type: GLenum) -> &'static str {
     }
 }
 
-// We will tell GLFW to run this function whenever the framebuffer size is changed.
-/*
-fn glfw_framebuffer_size_callback(window: &mut glfw::Window, width: u32, height: u32) {
-    unsafe {
-        G_GL_WIDTH = width;
-        G_GL_HEIGHT = height;
-    }
+///
+/// A callback that GLFW runs whenever the framebuffer size changes.
+///
+fn glfw_framebuffer_size_callback(context: &mut GLContext, width: u32, height: u32) {
+    context.width = width;
+    context.height = height;
     println!("width {} height {}", width, height);
-    /* Update any perspective matrices used here */
+    /* TODO: Update any perspective matrices used here */
 }
-*/
 
-/* we will tell GLFW to run this function whenever it finds an error */
+
+/// 
+/// A callback for that tells GLFW what to do whenever it finds an error.
+///
 fn glfw_error_callback(logger: &Logger, error: glfw::Error, description: String, error_count: &Cell<usize>) {
     logger.log_err(&format!("GLFW ERROR: code {} msg: {}", error, description));
     error_count.set(error_count.get() + 1);
@@ -126,7 +127,8 @@ pub fn log_gl_params(logger: &Logger) {
 }
 
 ///
-/// The application-side OpenGL data and program state.
+/// A record for storing all the OpenGL state machine state needed on
+/// the CPU side of an OpenGL graphics application.
 ///
 pub struct GLContext {
     pub glfw: glfw::Glfw,
