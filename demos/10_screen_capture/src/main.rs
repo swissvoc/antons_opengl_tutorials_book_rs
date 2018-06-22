@@ -174,7 +174,7 @@ fn main() {
     let near = 0.1;                                  // clipping plane
     let far = 100.0;                                 // clipping plane
     let fov = 67.0;                                  // convert 67 degrees to radians
-    let aspect = unsafe { context.width as f32 / context.height as f32 }; // aspect ratio
+    let aspect = context.width as f32 / context.height as f32; // aspect ratio
     let proj_mat = Mat4::perspective(fov, aspect, near, far);
 
     // View matrix components.
@@ -239,12 +239,10 @@ fn main() {
         match context.window.get_key(Key::PrintScreen) {
             Action::Press | Action::Repeat => {
                 println!("Screen captured.");
-                unsafe {    
-                    screen::capture(
-                        context.height as usize, context.width as usize, context.channel_depth as usize, 
-                        &|buf| { gl_capture_frame_buffer(&context, buf) }
-                    ).unwrap();
-                }
+                screen::capture(
+                    context.height as usize, context.width as usize, context.channel_depth as usize, 
+                    &|buf| { gl_capture_frame_buffer(&context, buf) }
+                ).unwrap();
             }
             _ => {}
         }

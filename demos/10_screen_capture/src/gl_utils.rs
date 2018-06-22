@@ -198,21 +198,19 @@ pub fn start_gl(logger: &Logger) -> Result<GLContext, String> {
 ///
 /// Update the framerate and display in the window titlebar.
 ///
-pub fn update_fps_counter(context: &mut GLContext) {
-    unsafe {        
-        let current_time_seconds = context.glfw.get_time();
-        let delta_seconds = current_time_seconds - context.elapsed_time_seconds;
-        if delta_seconds > 0.25 {
-            context.elapsed_time_seconds = current_time_seconds;
-            let fps = context.frame_count as f64 / delta_seconds;
-            let mut title: String = String::new();
-            write!(&mut title, "OpenGL @ FPS: {:.2}", fps).unwrap();
-            context.window.set_title(&title);
-            context.frame_count = 0;
-        }
-
-        context.frame_count += 1;
+pub fn update_fps_counter(context: &mut GLContext) {     
+    let current_time_seconds = context.glfw.get_time();
+    let delta_seconds = current_time_seconds - context.elapsed_time_seconds;
+    if delta_seconds > 0.25 {
+        context.elapsed_time_seconds = current_time_seconds;
+        let fps = context.frame_count as f64 / delta_seconds;
+        let mut title: String = String::new();
+        write!(&mut title, "OpenGL @ FPS: {:.2}", fps).unwrap();
+        context.window.set_title(&title);
+        context.frame_count = 0;
     }
+
+    context.frame_count += 1;
 }
 
 pub fn parse_file_into_str(logger: &Logger, file_name: &str, shader_str: &mut [u8], max_len: usize) -> bool {
