@@ -222,7 +222,7 @@ fn main() {
             PREVIOUS_SECONDS = current_seconds;
         }
 
-        _update_fps_counter(&context.glfw, &mut context.window);
+        update_fps_counter(&context.glfw, &mut context.window);
         unsafe {
             // wipe the drawing surface clear
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);

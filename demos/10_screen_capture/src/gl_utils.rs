@@ -179,7 +179,7 @@ pub fn start_gl(logger: &Logger) -> Result<GLContext, String> {
 }
 
 // We will use this function to update the window title with a frame rate.
-pub fn _update_fps_counter(glfw: &glfw::Glfw, window: &mut glfw::Window) {
+pub fn update_fps_counter(glfw: &glfw::Glfw, window: &mut glfw::Window) {
     unsafe {        
         let current_seconds = glfw.get_time();
         let elapsed_seconds = current_seconds - PREVIOUS_SECONDS;
