@@ -27,9 +27,13 @@ use std::ptr;
 use graphics_math as math;
 use math::Mat4;
 
+
+const GL_LOG_FILE: &str = "gl.log";
+
 const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
 const TEXTURE_FILE: &str = "src/skulluvmap.png";
+
 
 const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
 const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
@@ -109,9 +113,9 @@ fn gl_capture_frame_buffer(buffer: &mut [u8]) -> bool {
 }
 
 fn main() {
-    restart_gl_log();
+    restart_gl_log(GL_LOG_FILE);
     // start GL context and O/S window using the GLFW helper library
-    let (mut glfw, mut g_window, mut _g_events) = start_gl().unwrap();
+    let (mut glfw, mut g_window, mut _g_events) = start_gl(GL_LOG_FILE).unwrap();
 
     // tell GL to only draw onto a pixel if the shape is closer to the viewer
     unsafe {
@@ -165,7 +169,7 @@ fn main() {
     }
     assert!(vao != 0);
 
-    let shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
+    let shader_programme = create_programme_from_files(GL_LOG_FILE, VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
 
     // input variables
     let near = 0.1;                                  // clipping plane

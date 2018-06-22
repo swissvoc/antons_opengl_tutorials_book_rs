@@ -14,7 +14,6 @@ use std::cell::Cell;
 use std::sync::mpsc::Receiver;
 
 
-const GL_LOG_FILE: &str = "gl.log";
 const MAX_SHADER_LENGTH: usize = 262144;
 
 // Keep track of window size for things like the viewport and the mouse cursor
@@ -46,17 +45,17 @@ fn glfw_framebuffer_size_callback(window: &mut glfw::Window, width: u32, height:
 }
 
 /* we will tell GLFW to run this function whenever it finds an error */
-fn glfw_error_callback(error: glfw::Error, description: String, error_count: &Cell<usize>) {
-    gl_log_err(&format!("GLFW ERROR: code {} msg: {}", error, description));
+fn glfw_error_callback(log_file: &str, error: glfw::Error, description: String, error_count: &Cell<usize>) {
+    gl_log_err(log_file, &format!("GLFW ERROR: code {} msg: {}", error, description));
     error_count.set(error_count.get() + 1);
 }
 
 /// Start a new log file with the time and date at the top.
-pub fn restart_gl_log() -> bool {
-    let file = File::create(GL_LOG_FILE);
+pub fn restart_gl_log(log_file: &str) -> bool {
+    let file = File::create(log_file);
     if file.is_err() {
         eprintln!(
-            "ERROR: The GL_LOG_FILE log file {} could not be opened for writing.", GL_LOG_FILE
+            "ERROR: The GL_LOG_FILE log file {} could not be opened for writing.", log_file
         );
 
         return false;
@@ -72,10 +71,10 @@ pub fn restart_gl_log() -> bool {
 }
 
 /// Add a message to the log file.
-pub fn gl_log(message: &str) -> bool {
-    let file = OpenOptions::new().write(true).append(true).open(GL_LOG_FILE);
+pub fn gl_log(log_file: &str, message: &str) -> bool {
+    let file = OpenOptions::new().write(true).append(true).open(log_file);
     if file.is_err() {
-        eprintln!("ERROR: Could not open GL_LOG_FILE {} file for appending.", GL_LOG_FILE);
+        eprintln!("ERROR: Could not open GL_LOG_FILE {} file for appending.", log_file);
         return false;
     }
 
@@ -86,10 +85,10 @@ pub fn gl_log(message: &str) -> bool {
 }
 
 /// Same as gl_log except also prints to stderr.
-pub fn gl_log_err(message: &str) -> bool {
-    let file = OpenOptions::new().write(true).append(true).open(GL_LOG_FILE);
+pub fn gl_log_err(log_file: &str, message: &str) -> bool {
+    let file = OpenOptions::new().write(true).append(true).open(log_file);
     if file.is_err() {
-        eprintln!("ERROR: Could not open GL_LOG_FILE {} file for appending.", GL_LOG_FILE);
+        eprintln!("ERROR: Could not open GL_LOG_FILE {} file for appending.", log_file);
         return false;
     }
 
@@ -103,7 +102,7 @@ pub fn gl_log_err(message: &str) -> bool {
 
 // We can use a function like this to print some GL capabilities of our adapter
 // to the log file. This is handy if we want to debug problems on other people's computers.
-pub fn log_gl_params() {
+pub fn log_gl_params(log_file: &str) {
     let params: [GLenum; 12] = [
         gl::MAX_COMBINED_TEXTURE_IMAGE_UNITS,
         gl::MAX_CUBE_MAP_TEXTURE_SIZE,
@@ -132,39 +131,32 @@ pub fn log_gl_params() {
         "GL_MAX_VIEWPORT_DIMS",
         "GL_STEREO",
     ];
-    gl_log("GL Context Params:\n");
+    gl_log(log_file, "GL Context Params:\n");
     unsafe {
         // integers - only works if the order is 0-10 integer return types
         for i in 0..10 {
             let mut v = 0;
             gl::GetIntegerv(params[i], &mut v);
-            gl_log(&format!("{} {}", names[i], v));
+            gl_log(log_file, &format!("{} {}", names[i], v));
         }
         // others
         let mut v: [GLint; 2] = [0; 2];
         gl::GetIntegerv(params[10], &mut v[0]);
-        gl_log(&format!("{} {} {}\n", names[10], v[0], v[1]));
+        gl_log(log_file, &format!("{} {} {}\n", names[10], v[0], v[1]));
         let mut s = 0;
         gl::GetBooleanv(params[11], &mut s);
-        gl_log(&format!("{} {}", names[11], s as usize));
-        gl_log("-----------------------------");
+        gl_log(log_file, &format!("{} {}", names[11], s as usize));
+        gl_log(log_file, "-----------------------------");
     }
 }
 
-pub fn start_gl() -> Result<(glfw::Glfw, glfw::Window, Receiver<(f64, glfw::WindowEvent)>), String> {
+pub fn start_gl(log_file: &str) -> Result<(glfw::Glfw, glfw::Window, Receiver<(f64, glfw::WindowEvent)>), String> {
     // Start a GL context and OS window using the GLFW helper library.
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
-    restart_gl_log();
+    restart_gl_log(log_file);
     // Start GL context and O/S window using the GLFW helper library.
-    gl_log(&format!("Starting GLFW\n{}\n", glfw::get_version_string()));
-    // register the error call-back function that we wrote, above
-    glfw.set_error_callback(Some(
-        glfw::Callback { 
-            f: glfw_error_callback,
-            data: Cell::new(0),
-        }
-    ));
+    gl_log(log_file, &format!("Starting GLFW\n{}\n", glfw::get_version_string()));
 
     // uncomment these lines if on Mac OS X.
     // glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -194,8 +186,8 @@ pub fn start_gl() -> Result<(glfw::Glfw, glfw::Window, Receiver<(f64, glfw::Wind
     let version = glubyte_ptr_to_string(unsafe { gl::GetString(gl::VERSION) });
     println!("Renderer: {}", renderer);
     println!("OpenGL version supported: {}", version);
-    gl_log(&format!("renderer: {}\nversion: {}\n", renderer, version));
-    log_gl_params();
+    gl_log(log_file, &format!("renderer: {}\nversion: {}\n", renderer, version));
+    log_gl_params(log_file);
 
     Ok((glfw, window, events))
 }
@@ -237,11 +229,11 @@ pub fn gl_type_to_string(gl_type: GLenum) -> &'static str {
     }
 }
 
-pub fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usize) -> bool {
+pub fn parse_file_into_str(log_file: &str, file_name: &str, shader_str: &mut [u8], max_len: usize) -> bool {
     shader_str[0] = 0;
     let file = File::open(file_name);
     if file.is_err() {
-        gl_log_err(&format!("ERROR: opening file for reading: {}\n", file_name));
+        gl_log_err(log_file, &format!("ERROR: opening file for reading: {}\n", file_name));
         return false;
     }
 
@@ -250,13 +242,13 @@ pub fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usiz
 
     let bytes_read = reader.read(shader_str);
     if bytes_read.is_err() {
-        gl_log_err(&format!("ERROR: reading shader file {}\n", file_name));
+        gl_log_err(log_file, &format!("ERROR: reading shader file {}\n", file_name));
         return false;
     }
 
     let bytes_read = bytes_read.unwrap();
     if bytes_read >= (max_len - 1) {
-        gl_log_err(&format!("WARNING: file {} too big - truncated.\n", file_name));
+        gl_log_err(log_file, &format!("WARNING: file {} too big - truncated.\n", file_name));
     }
 
     // append \0 to end of file string.
@@ -265,11 +257,11 @@ pub fn parse_file_into_str(file_name: &str, shader_str: &mut [u8], max_len: usiz
     return true;
 }
 
-fn create_shader(file_name: &str, shader: &mut GLuint, gl_type: GLenum) -> bool {
-    gl_log(&format!("Creating shader from {}...\n", file_name));
+fn create_shader(log_file: &str, file_name: &str, shader: &mut GLuint, gl_type: GLenum) -> bool {
+    gl_log(log_file, &format!("Creating shader from {}...\n", file_name));
 
     let mut shader_string = vec![0; MAX_SHADER_LENGTH];
-    parse_file_into_str(file_name, &mut shader_string, MAX_SHADER_LENGTH);
+    parse_file_into_str(log_file, file_name, &mut shader_string, MAX_SHADER_LENGTH);
 
     *shader = unsafe { gl::CreateShader(gl_type) };
     let p = shader_string.as_ptr() as *const GLchar;
@@ -285,12 +277,12 @@ fn create_shader(file_name: &str, shader: &mut GLuint, gl_type: GLenum) -> bool 
     }
 
     if params != gl::TRUE as i32 {
-        gl_log_err(&format!("ERROR: GL shader index {} did not compile\n", *shader));
+        gl_log_err(log_file, &format!("ERROR: GL shader index {} did not compile\n", *shader));
         print_shader_info_log(*shader);
         
         return false;
     }
-    gl_log(&format!("Shader compiled with index {}\n", *shader));
+    gl_log(log_file, &format!("Shader compiled with index {}\n", *shader));
     
     return true;
 }
@@ -330,7 +322,7 @@ pub fn print_programme_info_log(sp: GLuint) {
 }
 
 /* validate shader */
-pub fn is_programme_valid(sp: GLuint) -> bool {
+pub fn is_programme_valid(log_file: &str, sp: GLuint) -> bool {
     let mut params = -1;
     unsafe {
         gl::ValidateProgram(sp);
@@ -338,20 +330,20 @@ pub fn is_programme_valid(sp: GLuint) -> bool {
     }
 
     if gl::TRUE as i32 != params {
-        gl_log_err(&format!("Program {} GL_VALIDATE_STATUS = GL_FALSE\n", sp));
+        gl_log_err(log_file, &format!("Program {} GL_VALIDATE_STATUS = GL_FALSE\n", sp));
         print_programme_info_log(sp);
         return false;
     }
 
-    gl_log(&format!("Program {} GL_VALIDATE_STATUS = {}\n", sp, params));
+    gl_log(log_file, &format!("Program {} GL_VALIDATE_STATUS = {}\n", sp, params));
     
     return true;
 }
 
-pub fn create_programme(vertex_shader: GLuint, fragment_shader: GLuint, programme: &mut GLuint) -> bool {
+pub fn create_programme(log_file: &str, vertex_shader: GLuint, fragment_shader: GLuint, programme: &mut GLuint) -> bool {
     unsafe {
         *programme = gl::CreateProgram();
-        gl_log(&format!(
+        gl_log(log_file, &format!(
             "Created programme {}. attaching shaders {} and {}...\n", 
             programme, vertex_shader, fragment_shader)
         );
@@ -363,14 +355,14 @@ pub fn create_programme(vertex_shader: GLuint, fragment_shader: GLuint, programm
         let mut params = -1;
         gl::GetProgramiv(*programme, gl::LINK_STATUS, &mut params);
         if params != gl::TRUE as i32 {
-            gl_log_err(&format!(
+            gl_log_err(log_file, &format!(
                 "ERROR: could not link shader programme GL index {}\n", *programme)
             );
             print_programme_info_log(*programme);
         
             return false;
         }
-        is_programme_valid( *programme );
+        is_programme_valid(log_file, *programme);
         // Delete shaders here to free memory
         gl::DeleteShader(vertex_shader);
         gl::DeleteShader(fragment_shader);
@@ -378,14 +370,14 @@ pub fn create_programme(vertex_shader: GLuint, fragment_shader: GLuint, programm
     }
 }
 
-pub fn create_programme_from_files(vert_file_name: &str, frag_file_name: &str) -> GLuint {
+pub fn create_programme_from_files(log_file: &str, vert_file_name: &str, frag_file_name: &str) -> GLuint {
     let mut vertex_shader: GLuint = 0;
     let mut fragment_shader: GLuint = 0;
     let mut programme: GLuint = 0;
     
-    create_shader(vert_file_name, &mut vertex_shader, gl::VERTEX_SHADER);
-    create_shader(frag_file_name, &mut fragment_shader, gl::FRAGMENT_SHADER);
-    create_programme(vertex_shader, fragment_shader, &mut programme);
+    create_shader(log_file, vert_file_name, &mut vertex_shader, gl::VERTEX_SHADER);
+    create_shader(log_file, frag_file_name, &mut fragment_shader, gl::FRAGMENT_SHADER);
+    create_programme(log_file, vertex_shader, fragment_shader, &mut programme);
     
     programme
 }
