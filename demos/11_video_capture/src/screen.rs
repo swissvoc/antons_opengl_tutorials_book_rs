@@ -4,11 +4,45 @@ use png::HasParameters;
 use chrono::prelude::Utc;
 
 use std::path::Path;
+use std::fmt;
 use std::fs::File;
 use std::io::BufWriter;
+use std::error;
 
 
-pub fn capture<F>(height: usize, width: usize, depth: usize, capture_func: &F) -> bool 
+pub struct CaptureResult {
+    bytes_written: usize,
+    path: String,
+}
+
+
+#[derive(Copy, Clone, Debug)]
+pub enum CaptureError {
+    CouldNotCaptureFromFrameBuffer,
+    CouldNotWriteImageData,
+}
+
+impl fmt::Display for CaptureError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            CaptureError::CouldNotCaptureFromFrameBuffer => {
+                write!(f,
+                    "The frame buffer map provided reported failing to read out 
+                    the frame buffer data from the graphics device."
+                )
+            }
+            CaptureError::CouldNotWriteImageData => {
+                write!(f, "We could not write out the screenshot to an image file.")
+            }
+        }
+    }
+}
+
+impl error::Error for CaptureError {
+    fn description(&self) -> &str { "" }
+}
+
+pub fn capture<F>(height: usize, width: usize, depth: usize, capture_func: &F) -> Result<CaptureResult, CaptureError>
     where F: Fn(&mut [u8]) -> bool
 {
     let mut image_buffer: Vec<u8> = vec![0; (height * width * depth) as usize];
@@ -17,7 +51,7 @@ pub fn capture<F>(height: usize, width: usize, depth: usize, capture_func: &F) -
     // image buffer.
     let result = capture_func(&mut image_buffer);
     if !result {
-        return false;
+        return Err(CaptureError::CouldNotCaptureFromFrameBuffer);
     }
 
     let width_in_bytes = depth * width;
@@ -40,10 +74,11 @@ pub fn capture<F>(height: usize, width: usize, depth: usize, capture_func: &F) -
     encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
     let mut png_writer = encoder.write_header().unwrap();
     
-    let result =  png_writer.write_image_data(&image_buffer);
-    if result.is_err() {
-        return false;
+    match png_writer.write_image_data(&image_buffer) {
+        Ok(_) => Ok(CaptureResult { 
+            bytes_written: height * width * depth, 
+            path: String::from(path.to_str().unwrap()) 
+        }),
+        Err(_) => Err(CaptureError::CouldNotWriteImageData),
     }
-
-    true
 }
