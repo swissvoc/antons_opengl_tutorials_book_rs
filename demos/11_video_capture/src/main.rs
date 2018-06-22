@@ -184,7 +184,7 @@ fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
 
 fn main() {
     let logger = restart_gl_log(GL_LOG_FILE);
-    // start GL context and O/S window using the GLFW helper library
+    // Start  a GL context and O/S window using the GLFW helper library.
     let mut context = match start_gl(&logger) {
         Ok(val) => val,
         Err(e) => {

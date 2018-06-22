@@ -9,24 +9,27 @@ extern crate scan_fmt;
 mod gl_utils;
 mod graphics_math;
 mod obj_parser;
+mod logger;
 
 
 use glfw::{Action, Context, Key};
-use gl::types::{GLfloat, GLsizeiptr, GLvoid, GLsizei, GLuint};
+use gl::types::{GLfloat, GLsizeiptr, GLvoid, GLuint};
 use stb_image::image;
 use stb_image::image::{LoadResult, Image};
 
 use std::mem;
 use std::ptr;
+use std::process;
 
 use gl_utils::*;
 
 use graphics_math as math;
 use math::Mat4;
 
+const GL_LOG_FILE: &str = "gl.log";
 const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
-const TEXTURE_FILE: &str = "src/skulluvmap.png";
+const MESH_FILE: &str = "src/suzanne.obj";
 
 const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
 const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
@@ -95,121 +98,172 @@ fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
 }
 
 fn main() {
-    restart_gl_log();
-    // start GL context and O/S window using the GLFW helper library
-    let (mut glfw, mut g_window, mut _g_events) = start_gl().unwrap();
+    let logger = restart_gl_log(GL_LOG_FILE);
+    // Start a GL context and O/S window using the GLFW helper library.
+    let mut context = match start_gl(&logger) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("Failed to Initialize OpenGL context. Got error:");
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    };
 
-    // tell GL to only draw onto a pixel if the shape is closer to the viewer
+    // Tell GL to only draw onto a pixel if the shape is closer to the viewer.
     unsafe {
-        gl::Enable(gl::DEPTH_TEST); // enable depth-testing
-        gl::DepthFunc(gl::LESS);    // depth-testing interprets a smaller value as "closer"
+        // Enable depth testing.
+        gl::Enable(gl::DEPTH_TEST);
+        // Depth testing interprets a smaller value as closer to the eye.
+        gl::DepthFunc(gl::LESS);
+        // Cull face.
+        gl::Enable(gl::CULL_FACE);
+        // Cull back face.
+        gl::CullFace(gl::BACK);
+        // GL_CW for clockwise.    
+        gl::FrontFace(gl::CCW);
+        // grey background to help spot mistakes
+        gl::ClearColor(0.2, 0.2, 0.2, 1.0);
+        gl::Viewport(0, 0, context.width as i32, context.height as i32);
     }
 
-    /* OTHER STUFF GOES HERE NEXT */
-    let points: [GLfloat; 18] = [
-        -0.5, -0.5, 0.0,  0.5, -0.5, 0.0,  0.5,  0.5, 0.0, 
-         0.5,  0.5, 0.0, -0.5,  0.5, 0.0, -0.5, -0.5, 0.0
-    ];
+    /*------------------------------CREATE GEOMETRY------------------------------*/
+    let mesh = match obj_parser::load_obj_file(MESH_FILE) {
+        Ok(val) => val,
+        Err(e) => {
+            logger.log_err(&format!("ERROR: loading mesh file. Loader returned error\n{}", e));
+            process::exit(1);
+        }
+    };
 
-    // 2^16 == 65536
-    let texcoords: [GLfloat; 12] = [
-        0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0
-    ];
+    let vp = mesh.points;
+    let vn = mesh.normals;
+    let vt = mesh.tex_coords;
+    let g_point_count = mesh.point_count;
 
-    let mut points_vbo: GLuint = 0;
+    let mut vao = 0;
+    unsafe {
+        gl::GenVertexArrays(1, &mut vao);
+        gl::BindVertexArray(vao);
+    }
+    assert!(vao > 0);
+
+    let mut points_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut points_vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::BufferData(
-            gl::ARRAY_BUFFER, (points.len() * mem::size_of::<GLfloat>()) as GLsizeiptr, 
-            points.as_ptr() as *const GLvoid, gl::STATIC_DRAW
+            gl::ARRAY_BUFFER, (3 * g_point_count * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            vp.as_ptr() as *const GLvoid, gl::STATIC_DRAW
         );
+        gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
+        gl::EnableVertexAttribArray(0);
     }
-    assert!(points_vbo != 0);
+    assert!(points_vbo > 0);
 
-    let mut texcoords_vbo: GLuint = 0;
+    let mut normals_vbo = 0;
+    unsafe {
+        gl::GenBuffers(1, &mut normals_vbo);
+        gl::BindBuffer(gl::ARRAY_BUFFER, normals_vbo);
+        gl::BufferData(
+            gl::ARRAY_BUFFER, (3 * g_point_count * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            vn.as_ptr() as *const GLvoid, gl::STATIC_DRAW
+        );
+        gl::VertexAttribPointer(1, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
+        gl::EnableVertexAttribArray(1);
+    }
+    assert!(normals_vbo > 0);
+
+    let mut texcoords_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut texcoords_vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, texcoords_vbo);
         gl::BufferData(
-            gl::ARRAY_BUFFER, (texcoords.len() * mem::size_of::<GLfloat>()) as GLsizeiptr, 
-            texcoords.as_ptr() as *const GLvoid, gl::STATIC_DRAW
+            gl::ARRAY_BUFFER, (2 * g_point_count * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            vp.as_ptr() as *const GLvoid, gl::STATIC_DRAW
         );
+        gl::VertexAttribPointer(2, 2, gl::FLOAT, gl::FALSE, 0, ptr::null());
+        gl::EnableVertexAttribArray(2);
     }
-    assert!(texcoords_vbo != 0);
+    assert!(texcoords_vbo > 0);
 
-    let mut vao: GLuint = 0;
+    /*-------------------------------CREATE SHADERS------------------------------*/
+    let shader_programme = create_programme_from_files(&logger, VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
+    let view_mat_location = unsafe {
+        gl::GetUniformLocation(shader_programme, "view".as_ptr() as *const i8)
+    };
+    assert!(view_mat_location > -1);
+    let proj_mat_location = unsafe { 
+        gl::GetUniformLocation(shader_programme, "proj".as_ptr() as *const i8)
+    };
+    assert!(proj_mat_location > -1);
+
+    /* if converting to GLSL 410 do this to replace GLSL texture bindings:
+    GLint diffuse_map_loc, specular_map_loc, ambient_map_loc, emission_map_loc;
+    diffuse_map_loc = glGetUniformLocation (shader_programme, "diffuse_map");
+    specular_map_loc = glGetUniformLocation (shader_programme, "specular_map");
+    ambient_map_loc = glGetUniformLocation (shader_programme, "ambient_map");
+    emission_map_loc = glGetUniformLocation (shader_programme, "emission_map");
+    assert (diffuse_map_loc > -1);
+    assert (specular_map_loc > -1);
+    assert (ambient_map_loc > -1);
+    assert (emission_map_loc > -1);
+    glUseProgram (shader_programme);
+    glUniform1i (diffuse_map_loc, 0);
+    glUniform1i (specular_map_loc, 1);
+    glUniform1i (ambient_map_loc, 2);
+    glUniform1i (emission_map_loc, 3);
+    */
+
+    // load texture
+    let mut tex_diff = 0; 
+    let mut tex_spec = 0; 
+    let mut tex_amb = 0; 
+    let mut tex_emiss = 0;
     unsafe {
-        gl::GenVertexArrays(1, &mut vao);
-        gl::BindVertexArray(vao);
-        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
-        gl::BindBuffer(gl::ARRAY_BUFFER, texcoords_vbo);
-        gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, 0, ptr::null()); // normalize!
-        gl::EnableVertexAttribArray(0);
-        gl::EnableVertexAttribArray(1);
+        gl::ActiveTexture(gl::TEXTURE0);
+        load_texture("boulder_diff.png", &mut tex_diff);
+        gl::ActiveTexture(gl::TEXTURE1);
+        load_texture("boulder_spec.png", &mut tex_spec);
+        gl::ActiveTexture(gl::TEXTURE2);
+        load_texture("ao.png", &mut tex_amb);
+        gl::ActiveTexture(gl::TEXTURE3);
+        load_texture("tileable9b_emiss.png", &mut tex_emiss);
     }
-    assert!(vao != 0);
-
-    let shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
 
     // input variables
     let near = 0.1;                                  // clipping plane
     let far = 100.0;                                 // clipping plane
     let fov = 67.0;                                  // convert 67 degrees to radians
-    let aspect = unsafe { G_GL_WIDTH as f32 / G_GL_HEIGHT as f32 }; // aspect ratio
+    let aspect = context.width as f32 / context.height as f32; // aspect ratio
     let proj_mat = Mat4::perspective(fov, aspect, near, far);
 
     // matrix components
     let cam_speed: GLfloat = 1.0;             // 1 unit per second
     let cam_yaw_speed: GLfloat = 10.0;        // 10 degrees per second
-    let mut cam_pos: [GLfloat; 3] = [0.0, 0.0, 2.0]; // don't start at zero, or we will be too close
+    let mut cam_pos: [GLfloat; 3] = [0.0, 0.0, 5.0]; // don't start at zero, or we will be too close
     let mut cam_yaw: GLfloat = 0.0;               // y-rotation in degrees
     let mut mat_trans = Mat4::identity().translate(&math::vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2])));
     let mut mat_rot = Mat4::identity().rotate_y_deg(-cam_yaw);
     let mut view_mat = mat_rot * mat_trans;
 
-    let view_mat_location = unsafe {
-        gl::GetUniformLocation(shader_programme, "view".as_ptr() as *const i8)
-    };
-    assert!(view_mat_location != -1);
     unsafe {
         gl::UseProgram(shader_programme);
         gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
-    }
-
-    let proj_mat_location = unsafe { 
-        gl::GetUniformLocation(shader_programme, "proj".as_ptr() as *const i8)
-    };
-    unsafe {
-        gl::UseProgram(shader_programme);
         gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
     }
-    assert!(proj_mat_location != -1);
 
-    // load texture
-    let mut tex: GLuint = 0;
-    load_texture(TEXTURE_FILE, &mut tex);
-    assert!(tex != 0);
-
-    unsafe {
-        gl::Enable(gl::CULL_FACE); // cull face
-        gl::CullFace(gl::BACK);    // cull back face
-        gl::FrontFace(gl::CCW);    // GL_CCW for counter clock-wise
-    }
-
-    while !g_window.should_close() {
-        let current_seconds = glfw.get_time();
+    while !context.window.should_close() {
+        let current_seconds = context.glfw.get_time();
         let elapsed_seconds = unsafe { current_seconds - PREVIOUS_SECONDS };
         unsafe {
             PREVIOUS_SECONDS = current_seconds;
         }
 
-        _update_fps_counter(&glfw, &mut g_window);
+        update_fps_counter(&mut context);
         unsafe {
             // wipe the drawing surface clear
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-            gl::Viewport(0, 0, G_GL_HEIGHT as i32, G_GL_HEIGHT as i32);
+            gl::Viewport(0, 0, context.width as i32, context.height as i32);
 
             gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
@@ -218,60 +272,60 @@ fn main() {
             // update other events like input handling
         }
 
-        glfw.poll_events();
+        context.glfw.poll_events();
 
         // control keys
         let mut cam_moved = false;
-        match g_window.get_key(Key::A) {
+        match context.window.get_key(Key::A) {
             Action::Press | Action::Repeat => {
                 cam_pos[0] -= cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::D) {
+        match context.window.get_key(Key::D) {
             Action::Press | Action::Repeat => {
                 cam_pos[0] += cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Up) {
+        match context.window.get_key(Key::Up) {
             Action::Press | Action::Repeat => {
                 cam_pos[1] += cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Down) {
+        match context.window.get_key(Key::Down) {
             Action::Press | Action::Repeat => {
                 cam_pos[1] -= cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::W) {
+        match context.window.get_key(Key::W) {
             Action::Press | Action::Repeat => {
                 cam_pos[2] -= cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::S) {
+        match context.window.get_key(Key::S) {
             Action::Press | Action::Repeat => {
                 cam_pos[2] += cam_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Left) {
+        match context.window.get_key(Key::Left) {
             Action::Press | Action::Repeat => {
                 cam_yaw += cam_yaw_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
             }
             _ => {}
         }
-        match g_window.get_key(Key::Right) {
+        match context.window.get_key(Key::Right) {
             Action::Press | Action::Repeat => {
                 cam_yaw -= cam_yaw_speed * (elapsed_seconds as GLfloat);
                 cam_moved = true;
@@ -281,20 +335,20 @@ fn main() {
         // update view matrix
         if cam_moved {
             mat_trans = Mat4::identity().translate(&math::vec3((-cam_pos[0], -cam_pos[1], -cam_pos[2]))); // cam translation
-            mat_rot = Mat4::identity().rotate_y_deg(-cam_yaw);                 //
+            mat_rot = Mat4::identity().rotate_y_deg(-cam_yaw);
             view_mat = mat_rot * mat_trans;
             unsafe {
                 gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
             }
         }
 
-        match g_window.get_key(Key::Escape) {
+        match context.window.get_key(Key::Escape) {
             Action::Press | Action::Repeat => {
-                g_window.set_should_close(true);
+                context.window.set_should_close(true);
             }
             _ => {}
         }
         // Put the stuff we've been drawing onto the display.
-        g_window.swap_buffers();
+        context.window.swap_buffers();
     }
 }
