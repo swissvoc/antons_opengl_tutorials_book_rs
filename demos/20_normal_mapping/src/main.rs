@@ -69,14 +69,12 @@ fn load_mesh(file_name: &str) -> Result<AiMesh, String> {
         }
     };
 
-
     println!("  {} animations", scene.num_animations());
     println!("  {} cameras", scene.num_cameras());
     println!("  {} lights", scene.num_lights());
     println!("  {} materials", scene.num_materials());
     println!("  {} meshes", scene.num_meshes());
     println!("  {} textures", scene.num_textures());
-
 
     // get first mesh only
     let mesh = match scene.mesh(0) {
@@ -322,7 +320,7 @@ fn main() {
         gl::EnableVertexAttribArray(3);
     }
     assert!(tangents_vbo > 0);
-
+    println!("Created tangents_vbo.");
     let shader_programme = create_programme_from_files(&logger, VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
 
     // input variables
