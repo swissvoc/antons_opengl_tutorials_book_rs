@@ -29,8 +29,6 @@ use math::Mat4;
 const GL_LOG_FILE: &str = "gl.log";
 const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
-const TEXTURE_FILE0: &str = "src/blob.png";
-const TEXTURE_FILE1: &str = "src/blob2.png";
 
 const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
 const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
@@ -116,36 +114,31 @@ fn main() {
     }
 
     /* OTHER STUFF GOES HERE NEXT */
-    let points: [GLfloat; 18] = [
-        -0.5, -0.5, 0.0,  0.5, -0.5, 0.0,  0.5,  0.5, 0.0,
-         0.5,  0.5, 0.0, -0.5,  0.5, 0.0, -0.5, -0.5, 0.0 
-    ];
+    let points: [GLfloat; 9] = [0.0, 0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0];
 
-    let texcoords: [GLfloat; 12] = [
-        0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0
-    ];
+    let normals: [GLfloat; 9] = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
 
     let mut points_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut points_vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::BufferData(
-            gl::ARRAY_BUFFER, (18 * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            gl::ARRAY_BUFFER, (9 * mem::size_of::<GLfloat>()) as GLsizeiptr, 
             points.as_ptr() as *const GLvoid, gl::STATIC_DRAW
         );
     }
     assert!(points_vbo > 0);
 
-    let mut texcoords_vbo = 0;
+    let mut normals_vbo = 0;
     unsafe {
-        gl::GenBuffers(1, &mut texcoords_vbo);
-        gl::BindBuffer(gl::ARRAY_BUFFER, texcoords_vbo);
+        gl::GenBuffers(1, &mut normals_vbo);
+        gl::BindBuffer(gl::ARRAY_BUFFER, normals_vbo);
         gl::BufferData(
-            gl::ARRAY_BUFFER, (12 * mem::size_of::<GLfloat>()) as GLsizeiptr, 
-            texcoords.as_ptr() as *const GLvoid, gl::STATIC_DRAW
+            gl::ARRAY_BUFFER, (9 * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            normals.as_ptr() as *const GLvoid, gl::STATIC_DRAW
         );
     }
-    assert!(texcoords_vbo > 0);
+    assert!(normals_vbo > 0);
 
     let mut vao = 0;
     unsafe {
@@ -153,8 +146,8 @@ fn main() {
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
-        gl::BindBuffer(gl::ARRAY_BUFFER, texcoords_vbo);
-        gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, 0, ptr::null());
+        gl::BindBuffer(gl::ARRAY_BUFFER, normals_vbo);
+        gl::VertexAttribPointer(1, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
         gl::EnableVertexAttribArray(0);
         gl::EnableVertexAttribArray(1);
     }
@@ -178,45 +171,38 @@ fn main() {
     let mut mat_rot = Mat4::identity().rotate_y_deg(-cam_yaw);
     let mut view_mat = mat_rot * mat_trans;
 
-    let model_mat_location = unsafe {
-        gl::GetUniformLocation(shader_programme, "model".as_ptr() as *const i8)
-    };
-    assert!(model_mat_location > -1);
+    let mut model_mat = Mat4::identity();
+    model_mat.m[12] = 1.0;
 
     let view_mat_location = unsafe {
-        gl::GetUniformLocation(shader_programme, "view".as_ptr() as *const i8)
+        gl::GetUniformLocation(shader_programme, "view_mat".as_ptr() as *const i8)
     };
     assert!(view_mat_location > -1);
 
     let proj_mat_location = unsafe { 
-        gl::GetUniformLocation(shader_programme, "proj".as_ptr() as *const i8)
+        gl::GetUniformLocation(shader_programme, "projection_mat".as_ptr() as *const i8)
     };
     assert!(proj_mat_location > -1);
 
+    let model_mat_location = unsafe {
+        gl::GetUniformLocation(shader_programme, "model_mat".as_ptr() as *const i8)
+    };
+    assert!(model_mat_location > -1);
+    
     unsafe {
         gl::UseProgram(shader_programme);
         gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
         gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
+        gl::UniformMatrix4fv(model_mat_location, 1, gl::FALSE, model_mat.as_ptr());
     }
 
-    // Load texture.
-    let mut texa = 0;
-    load_texture(TEXTURE_FILE0, &mut texa);
-    assert!(texa > 0);
-
-    let mut texb = 0;
-    load_texture(TEXTURE_FILE1, &mut texb);
-    assert!(texb > 0);
-
     unsafe {
-        gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        gl::Enable(gl::BLEND);
         // Cull face.
         gl::Enable(gl::CULL_FACE);
         // Cull back face.
         gl::CullFace(gl::BACK);
         // GL_CW for clockwise.    
-        gl::FrontFace(gl::CCW);
+        gl::FrontFace(gl::CW);
     }
 
     while !context.window.should_close() {
@@ -231,22 +217,13 @@ fn main() {
             gl::Viewport(0, 0, context.width as i32, context.height as i32);
 
             gl::UseProgram(shader_programme);
+            
+            model_mat.m[12] = f32::sin(current_seconds as f32);
+            gl::UniformMatrix4fv(model_mat_location, 1, gl::FALSE, model_mat.as_ptr());
+
             gl::BindVertexArray(vao);
-        
-            gl::DepthMask(gl::FALSE);
 
-            gl::BindTexture(gl::TEXTURE_2D, texa);
-            let mut model = Mat4::identity();
-            gl::UniformMatrix4fv(model_mat_location, 1, gl::FALSE, model.as_ptr());
             gl::DrawArrays(gl::TRIANGLES, 0, 6);
-
-            gl::BindTexture(gl::TEXTURE_2D, texb);
-            model.m[12] = 0.5;
-            model.m[14] = 0.1;
-            gl::UniformMatrix4fv(model_mat_location, 1, gl::FALSE, model.as_ptr());
-            gl::DrawArrays(gl::TRIANGLES, 0, 6);
-
-            gl::DepthMask(gl::TRUE);
         }
 
         context.glfw.poll_events();
