@@ -30,12 +30,13 @@ const GL_LOG_FILE: &str = "gl.log";
 const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
 const TEXTURE_FILE0: &str = "src/skulluvmap.png";
-const TEXTURE_FILE1: &str = "src/ship.png";
+
+const COLOR_HOT_PINK: [f32; 3] = [
+    255 as f32 / 255 as f32, 20 as f32 / 255 as f32, 147 as f32 / 255 as f32
+];
 
 const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
 const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
-
-static mut PREVIOUS_SECONDS: f64 = 0.0;
 
 
 fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
@@ -160,6 +161,7 @@ fn main() {
         gl::EnableVertexAttribArray(0);
         gl::EnableVertexAttribArray(1);
     }
+    assert!(vao > 0);
 
     let shader_programme = create_programme_from_files(&logger, VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
 
@@ -183,38 +185,26 @@ fn main() {
         gl::GetUniformLocation(shader_programme, "view".as_ptr() as *const i8)
     };
     assert!(view_mat_location > -1);
+    unsafe {
+        gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
+        gl::UseProgram(shader_programme);
+    }
     let proj_mat_location = unsafe { 
         gl::GetUniformLocation(shader_programme, "proj".as_ptr() as *const i8)
     };
     assert!(proj_mat_location > -1);
-    let tex_a_location = unsafe {
-        gl::GetUniformLocation(shader_programme, "basic_texture".as_ptr() as *const i8)
-    };
-    assert!(tex_a_location > -1);
-    let tex_b_location = unsafe { 
-        gl::GetUniformLocation(shader_programme, "second_texture".as_ptr() as *const i8)
-    };
-    assert!(tex_b_location > -1);
     unsafe {
-        gl::UseProgram(shader_programme);
-        gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
         gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
+        gl::UseProgram(shader_programme);
+    }
 
-        // Tricky bit here: remember to set second sampler to use slot 1!
-        gl::Uniform1i(tex_a_location, 0);
-        gl::Uniform1i(tex_b_location, 1);
+    // Load texture.
+    let mut tex = 0;
+    load_texture(TEXTURE_FILE0, &mut tex);
+    assert!(tex > 0);
 
-        // load textures
-        let mut tex_a = 0;
-        gl::ActiveTexture(gl::TEXTURE0);
-        load_texture(TEXTURE_FILE0, &mut tex_a);
-        gl::BindTexture(gl::TEXTURE_2D, tex_a);
-        
-        let mut tex_b = 0;
-        gl::ActiveTexture(gl::TEXTURE1);
-        load_texture(TEXTURE_FILE1, &mut tex_b);
-        gl::BindTexture(gl::TEXTURE_2D, tex_b);
-
+    unsafe {
+        gl::ClearColor(COLOR_HOT_PINK[0], COLOR_HOT_PINK[1], COLOR_HOT_PINK[2], 1.0);
         // Cull face.
         gl::Enable(gl::CULL_FACE);
         // Cull back face.
@@ -225,10 +215,8 @@ fn main() {
 
     while !context.window.should_close() {
         let current_seconds = context.glfw.get_time();
-        let elapsed_seconds = unsafe { current_seconds - PREVIOUS_SECONDS };
-        unsafe {
-            PREVIOUS_SECONDS = current_seconds;
-        }
+        let elapsed_seconds = current_seconds - context.elapsed_time_seconds;
+        context.elapsed_time_seconds = current_seconds;
 
         update_fps_counter(&mut context);
         unsafe {
