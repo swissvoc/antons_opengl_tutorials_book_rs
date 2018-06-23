@@ -2,6 +2,7 @@ extern crate gl;
 extern crate glfw;
 extern crate chrono;
 extern crate stb_image;
+extern crate png;
 extern crate assimp;
 
 #[macro_use] 
@@ -14,11 +15,14 @@ mod logger;
 
 
 use glfw::{Action, Context, Key};
-use gl::types::{GLfloat, GLsizeiptr, GLvoid};
+use gl::types::{GLfloat, GLsizeiptr, GLvoid, GLuint};
 
 use std::mem;
 use std::ptr;
 use std::process;
+
+use stb_image::image;
+use stb_image::image::LoadResult;
 
 use gl_utils::*;
 
@@ -34,6 +38,9 @@ const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
 const MESH_FILE: &str = "src/suzanne.obj";
 const NMAP_IMG_FILE: &str = "src/brickwork_normal-map.png";
 
+const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
+const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
+
 
 fn calc_tangent_space() -> ai::structs::CalcTangentSpace {
     ai::structs::CalcTangentSpace {
@@ -48,10 +55,12 @@ struct AiMesh {
     vn: Vec<f32>,
     vt: Vec<f32>,
     vtans: Vec<f32>,
+    point_count: u32,
 }
 
 fn load_mesh(file_name: &str) -> Result<AiMesh, String> {
-    let importer = ai::Importer::new();
+    let mut importer = ai::Importer::new();
+    importer.calc_tangent_space(|calc| {});
     let scene = match importer.read_file(file_name) {
         Ok(val) => val,
         Err(_) => {
@@ -59,6 +68,7 @@ fn load_mesh(file_name: &str) -> Result<AiMesh, String> {
             return Err(format!("ERROR: reading mesh {}", file_name));
         }
     };
+
 
     println!("  {} animations", scene.num_animations());
     println!("  {} cameras", scene.num_cameras());
@@ -77,13 +87,12 @@ fn load_mesh(file_name: &str) -> Result<AiMesh, String> {
         }
     };
     println!("    {} vertices in mesh[0]", mesh.num_vertices());
-    let g_point_count = mesh.num_vertices();
-
     
     let mut g_vp: Vec<GLfloat> = vec![];
     let mut g_vn: Vec<GLfloat> = vec![];
     let mut g_vt: Vec<GLfloat> = vec![];
     let mut g_vtans: Vec<GLfloat> = vec![];
+    let g_point_count = mesh.num_vertices();
 
     // allocate memory for vertex points
     if mesh.has_positions() {
@@ -156,8 +165,68 @@ fn load_mesh(file_name: &str) -> Result<AiMesh, String> {
         vp: g_vp,
         vn: g_vn,
         vt: g_vt,
-        vtans: g_vtans,    
+        vtans: g_vtans,
+        point_count: g_point_count,
     });
+}
+
+fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
+    let force_channels = 4;
+    let mut image_data = match image::load_with_depth(file_name, force_channels, false) {
+        LoadResult::ImageU8(image_data) => image_data,
+        LoadResult::Error(_) => {
+            eprintln!("ERROR: could not load {}", file_name);
+            return false;
+        }
+        LoadResult::ImageF32(_) => {
+            eprintln!("ERROR: Tried to load an image as byte vectors, got f32: {}", file_name);
+            return false;
+        }
+    };
+
+    let width = image_data.width;
+    let height = image_data.height;
+
+    // Check that the image size is a power of two.
+    if (width & (width - 1)) != 0 || (height & (height - 1)) != 0 {
+        eprintln!("WARNING: texture {} is not power-of-2 dimensions", file_name);
+    }
+
+    let width_in_bytes = 4 *width;
+    let half_height = height / 2;
+    for row in 0..half_height {
+        for col in 0..width_in_bytes {
+            let temp = image_data.data[row * width_in_bytes + col];
+            image_data.data[row * width_in_bytes + col] = image_data.data[((height - row - 1) * width_in_bytes) + col];
+            image_data.data[((height - row - 1) * width_in_bytes) + col] = temp;
+        }
+    }
+
+    unsafe {
+        gl::GenTextures(1, tex);
+        gl::ActiveTexture(gl::TEXTURE0);
+        gl::BindTexture(gl::TEXTURE_2D, *tex);
+        gl::TexImage2D(
+            gl::TEXTURE_2D, 0, gl::RGBA as i32, width as i32, height as i32, 0, 
+            gl::RGBA, gl::UNSIGNED_BYTE, 
+            image_data.data.as_ptr() as *const GLvoid
+        );
+        gl::GenerateMipmap(gl::TEXTURE_2D);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as i32);
+    }
+
+    let mut max_aniso = 0.0;
+    // TODO: Check this against my dependencies.
+    unsafe {
+        gl::GetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut max_aniso);
+        // Set the maximum!
+        gl::TexParameterf(gl::TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_aniso);
+    }
+
+    return true;
 }
 
 fn main() {
@@ -181,7 +250,7 @@ fn main() {
     }
 
     /*------------------------------CREATE GEOMETRY------------------------------*/
-    let mesh = match obj_parser::load_obj_file(MESH_FILE) {
+    let mesh = match load_mesh(MESH_FILE) {
         Ok(val) => val,
         Err(e) => {
             logger.log_err(&format!("ERROR: loading mesh file. Loader returned error\n{}", e));
@@ -189,10 +258,11 @@ fn main() {
         }
     };
 
-    let g_vp = mesh.points;
-    let g_vn = mesh.normals;
-    let g_vt = mesh.tex_coords;
-    let g_point_count = mesh.point_count;
+    let g_vp = mesh.vp;
+    let g_vn = mesh.vn;
+    let g_vt = mesh.vt;
+    let g_vtans = mesh.vtans;
+    let g_point_count = mesh.point_count as usize;
 
     let mut vao = 0;
     unsafe {
@@ -240,6 +310,19 @@ fn main() {
     }
     assert!(texcoords_vbo > 0);
 
+    let mut tangents_vbo = 0;
+    unsafe {
+        gl::GenBuffers(1, &mut tangents_vbo);
+        gl::BindBuffer(gl::ARRAY_BUFFER, tangents_vbo);
+        gl::BufferData(
+            gl::ARRAY_BUFFER, (4 * g_point_count * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            g_vtans.as_ptr() as *const GLvoid, gl::STATIC_DRAW
+        );
+        gl::VertexAttribPointer(3, 4, gl::FLOAT, gl::FALSE, 0, ptr::null());
+        gl::EnableVertexAttribArray(3);
+    }
+    assert!(tangents_vbo > 0);
+
     let shader_programme = create_programme_from_files(&logger, VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
 
     // input variables
@@ -258,6 +341,11 @@ fn main() {
     let mut mat_rot = Mat4::identity().rotate_y_deg(-cam_yaw);
     let mut view_mat = mat_rot * mat_trans;
 
+    let model_mat_location = unsafe {
+        gl::GetUniformLocation(shader_programme, "model".as_ptr() as *const i8)
+    };
+    assert!(model_mat_location > -1);
+
     let view_mat_location = unsafe {
         gl::GetUniformLocation(shader_programme, "view".as_ptr() as *const i8)
     };
@@ -268,16 +356,17 @@ fn main() {
     };
     assert!(proj_mat_location > -1);
 
-    let time_location = unsafe {
-        gl::GetUniformLocation(shader_programme, "time".as_ptr() as *const i8)
-    };
-    assert!(time_location > -1);
-
+    let model_mat = Mat4::identity();
     unsafe {
         gl::UseProgram(shader_programme);
+        gl::UniformMatrix4fv(model_mat_location, 1, gl::FALSE, model_mat.as_ptr());
         gl::UniformMatrix4fv(view_mat_location, 1, gl::FALSE, view_mat.as_ptr());
         gl::UniformMatrix4fv(proj_mat_location, 1, gl::FALSE, proj_mat.as_ptr());
     }
+
+    // load normal map image into texture
+    let mut nmap_tex = 0;
+    load_texture(NMAP_IMG_FILE, &mut nmap_tex);
 
     unsafe {
         // Cull face.
@@ -286,7 +375,6 @@ fn main() {
         gl::CullFace(gl::BACK);
         // GL_CW for clockwise.    
         gl::FrontFace(gl::CCW);
-        gl::ClearColor(0.2, 0.2, 0.2, 1.0);
     }
 
     while !context.window.should_close() {
@@ -302,11 +390,9 @@ fn main() {
 
             gl::UseProgram(shader_programme);
             gl::BindVertexArray(vao);
-            // Draw points 0-3 from the currently bound VAO with current in-use shader.
-            gl::Uniform1f(time_location, current_seconds as f32);
-            gl::DrawArrays(gl::TRIANGLES, 0, g_point_count as i32);
+
             // Update other events like input handling
-            gl::DrawArrays(gl::TRIANGLES, 0, 6);
+            gl::DrawArrays(gl::TRIANGLES, 0, g_point_count as i32);
         }
 
         context.glfw.poll_events();
