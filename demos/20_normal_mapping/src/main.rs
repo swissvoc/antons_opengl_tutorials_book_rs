@@ -2,6 +2,7 @@ extern crate gl;
 extern crate glfw;
 extern crate chrono;
 extern crate stb_image;
+extern crate assimp;
 
 #[macro_use] 
 extern crate scan_fmt;
@@ -24,12 +25,128 @@ use gl_utils::*;
 use graphics_math as math;
 use math::Mat4;
 
+use assimp::import as ai;
+
+
 const GL_LOG_FILE: &str = "gl.log";
 const VERTEX_SHADER_FILE: &str = "src/test.vert.glsl";
 const FRAGMENT_SHADER_FILE: &str = "src/test.frag.glsl";
 const MESH_FILE: &str = "src/suzanne.obj";
 const NMAP_IMG_FILE: &str = "src/brickwork_normal-map.png";
 
+
+fn calc_tangent_space() -> ai::structs::CalcTangentSpace {
+    ai::structs::CalcTangentSpace {
+        enable: true,
+        max_smoothing_angle: 45.0,
+        texture_channel: 0,
+    }
+}
+
+fn load_mesh(file_name: &str) -> bool {
+    let importer = ai::Importer::new();
+    let scene = match importer.read_file(file_name) {
+        Ok(val) => val,
+        Err(_) => {
+            eprintln!("ERROR: reading mesh {}", file_name);
+            return false;
+        }
+    };
+
+    println!("  {} animations", scene.num_animations());
+    println!("  {} cameras", scene.num_cameras());
+    println!("  {} lights", scene.num_lights());
+    println!("  {} materials", scene.num_materials());
+    println!("  {} meshes", scene.num_meshes());
+    println!("  {} textures", scene.num_textures());
+
+
+    // get first mesh only
+    let mesh = match scene.mesh(0) {
+        Some(val) => val,
+        None => {
+            eprintln!("ERROR: scene \"{}\" has not meshes.", file_name);
+            return false;
+        }
+    };
+    println!("    {} vertices in mesh[0]", mesh.num_vertices());
+    let g_point_count = mesh.num_vertices();
+
+    
+    let mut g_vp: Vec<GLfloat> = vec![];
+    let mut g_vn: Vec<GLfloat> = vec![];
+    let mut g_vt: Vec<GLfloat> = vec![];
+    let mut g_vtans: Vec<GLfloat> = vec![];
+
+    // allocate memory for vertex points
+    if mesh.has_positions() {
+        println!("mesh has positions");
+        g_vp = vec![0.0; 3 * (g_point_count as usize) * mem::size_of::<GLfloat>()];
+    }
+    if mesh.has_normals() {
+        println!("mesh has normals");
+        g_vn = vec![0.0; 3 * (g_point_count as usize) * mem::size_of::<GLfloat>()];
+    }
+    if mesh.has_texture_coords(0) {
+        println!("mesh has texture coords");
+        g_vt = vec![0.0; 2 * (g_point_count as usize) * mem::size_of::<GLfloat>()];
+    }
+    if mesh.has_tangents_and_bitangents() {
+        println!("mesh has tangents");
+        g_vtans = vec![0.0; 4 * (g_point_count as usize) * mem::size_of::<GLfloat>()];
+    }
+
+    for v_i in 0..mesh.num_vertices() as usize {
+        if mesh.has_positions() {
+            let vp = mesh.get_vertex(v_i as u32).unwrap();
+            g_vp[3 * v_i] = vp.x;
+            g_vp[3 * v_i + 1] = vp.y;
+            g_vp[3 * v_i + 2] = vp.z;
+        }
+        if mesh.has_normals() {
+            let vn = mesh.get_normal(v_i as u32).unwrap();
+            g_vn[3 * v_i] = vn.x;
+            g_vn[3 * v_i + 1] = vn.y;
+            g_vn[3 * v_i + 2] = vn.z;
+        }
+        if mesh.has_texture_coords(0) {
+            let vt = mesh.get_texture_coord(0, v_i as u32).unwrap();
+            g_vt[2 * v_i] = vt.x;
+            g_vt[2 * v_i + 1] = vt.y;
+        }
+        if mesh.has_tangents_and_bitangents() {
+            let tangent = mesh.get_tangent(v_i as u32).unwrap();
+            let bitangent = mesh.get_bitangent(v_i as u32).unwrap();
+            let normal = mesh.get_normal(v_i as u32).unwrap();
+
+            // put the three vectors into my vec3 struct format for doing maths
+            let t = math::vec3((tangent.x, tangent.y, tangent.z));
+            let n = math::vec3((normal.x, normal.y, normal.z));
+            let b = math::vec3((bitangent.x, bitangent.y, bitangent.z));
+            // orthogonalise and normalise the tangent so we can use it in something
+            // approximating a T,N,B inverse matrix
+            let t_i = (t - n * n.dot(&t)).normalize();
+
+            // get determinant of T,B,N 3x3 matrix by dot*cross method
+            let mut det = (n.cross(&t)).dot(&b);
+            if det < 0.0 {
+                det = -1.0;
+            } else {
+                det = 1.0;
+            }
+
+            // push back 4d vector for inverse tangent with determinant
+            g_vtans[4 * v_i] = t_i.v[0];
+            g_vtans[4 * v_i + 1] = t_i.v[1];
+            g_vtans[4 * v_i + 2] = t_i.v[2];
+            g_vtans[4 * v_i + 3] = det;
+        }
+    }
+
+    println!("mesh loaded");
+
+    return true;
+}
 
 fn main() {
     let logger = restart_gl_log(GL_LOG_FILE);
