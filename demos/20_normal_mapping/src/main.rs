@@ -43,13 +43,20 @@ fn calc_tangent_space() -> ai::structs::CalcTangentSpace {
     }
 }
 
-fn load_mesh(file_name: &str) -> bool {
+struct AiMesh {
+    vp: Vec<f32>,
+    vn: Vec<f32>,
+    vt: Vec<f32>,
+    vtans: Vec<f32>,
+}
+
+fn load_mesh(file_name: &str) -> Result<AiMesh, String> {
     let importer = ai::Importer::new();
     let scene = match importer.read_file(file_name) {
         Ok(val) => val,
         Err(_) => {
             eprintln!("ERROR: reading mesh {}", file_name);
-            return false;
+            return Err(format!("ERROR: reading mesh {}", file_name));
         }
     };
 
@@ -66,7 +73,7 @@ fn load_mesh(file_name: &str) -> bool {
         Some(val) => val,
         None => {
             eprintln!("ERROR: scene \"{}\" has not meshes.", file_name);
-            return false;
+            return Err(format!("ERROR: scene \"{}\" has not meshes.", file_name));
         }
     };
     println!("    {} vertices in mesh[0]", mesh.num_vertices());
@@ -145,7 +152,12 @@ fn load_mesh(file_name: &str) -> bool {
 
     println!("mesh loaded");
 
-    return true;
+    return Ok(AiMesh {
+        vp: g_vp,
+        vn: g_vn,
+        vt: g_vt,
+        vtans: g_vtans,    
+    });
 }
 
 fn main() {
