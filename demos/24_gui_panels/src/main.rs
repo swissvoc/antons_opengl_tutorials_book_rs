@@ -285,6 +285,8 @@ fn main() {
     let cam_speed = 3.0;          // 1 unit per second
     let cam_heading_speed = 50.0; // 30 degrees per second
 
+    app.view_mat = view;
+    app.proj_mat = proj;
     create_ground_plane_shaders(&logger, &mut app);
     create_gui_shaders(&logger, &mut app);
 
@@ -464,6 +466,7 @@ fn main() {
             mat_trans_inv = Mat4::identity().translate(&cam_pos);
 
             view = mat_rot_inv.inverse() * mat_trans_inv.inverse();
+            app.view_mat = view;
             unsafe {
                 gl::UseProgram(app.gp_sp);
                 gl::UniformMatrix4fv(app.gp_view_mat_loc, 1, gl::FALSE, view.as_ptr());
