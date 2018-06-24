@@ -163,7 +163,7 @@ pub fn start_gl(logger: &Logger) -> Result<GLContext, String> {
     glfw.window_hint(glfw::WindowHint::Samples(Some(4)));
 
     let (mut window, events) = glfw.create_window(
-        G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "Cube Mapping", glfw::WindowMode::Windowed
+        G_GL_WIDTH_DEFAULT, G_GL_HEIGHT_DEFAULT, "GUI Panels", glfw::WindowMode::Windowed
     )
     .expect("Failed to create GLFW window.");
 
