@@ -15,7 +15,7 @@ mod logger;
 
 
 use glfw::{Action, Context, Key};
-use gl::types::{GLenum, GLfloat, GLsizeiptr, GLvoid, GLuint};
+use gl::types::{GLchar, GLfloat, GLint, GLsizeiptr, GLvoid, GLuint};
 
 use std::mem;
 use std::ptr;
@@ -27,80 +27,138 @@ use stb_image::image::LoadResult;
 use gl_utils::*;
 
 use graphics_math as math;
-use math::{Vec3, Mat4, Versor};
+use math::{Mat4, Versor};
+use logger::Logger;
 
 
 const GL_LOG_FILE: &str = "gl.log";
-const MESH_FILE: &str = "src/suzanne.obj";
+const GP_VS_FILE: &str = "src/gp_vs.glsl";
+const GP_FS_FILE: &str = "src/gp_fs.glsl";
+const GUI_VS_FILE: &str = "src/gui_vs.glsl";
+const GUI_FS_FILE: &str = "src/gui_fs.glsl";
 
-/* choose pure reflection or pure refraction here. */
-const MONKEY_VERT_FILE: &str = "src/reflect_vs.glsl";
-const MONKEY_FRAG_FILE: &str = "src/reflect_fs.glsl";
-//const MONKEY_VERT_FILE: &str = "refract_vs.glsl";
-//const MONKEY_FRAG_FILE: &str = "refract_fs.glsl";
+const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
+const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
 
-const CUBE_VERT_FILE: &str = "src/cube_vs.glsl";
-const CUBE_FRAG_FILE: &str = "src/cube_fs.glsl";
-const FRONT: &str = "src/negz.jpg";
-const BACK: &str = "src/posz.jpg";
-const TOP: &str = "src/posy.jpg";
-const BOTTOM: &str = "src/negy.jpg";
-const LEFT: &str = "src/negx.jpg";
-const RIGHT: &str = "src/posx.jpg";
 
-/* big cube. returns Vertex Array Object */
-fn make_big_cube() -> GLuint {
-    let points: [GLfloat; 108] = [
-        -10.0,  10.0, -10.0, -10.0, -10.0, -10.0,  10.0, -10.0, -10.0,
-         10.0, -10.0, -10.0,  10.0,  10.0, -10.0, -10.0,  10.0, -10.0,
+struct AppState {
+    g_viewport_width: u32,
+    g_viewport_height: u32,
 
-        -10.0, -10.0,  10.0, -10.0, -10.0, -10.0, -10.0,  10.0, -10.0,
-        -10.0,  10.0, -10.0, -10.0,  10.0,  10.0, -10.0, -10.0,  10.0,
+    // virtual camera view matrix
+    view_mat: Mat4,
+    // virtual camera projection matrix
+    proj_mat: Mat4,
 
-         10.0, -10.0, -10.0,  10.0, -10.0,  10.0,  10.0,  10.0,  10.0,
-         10.0,  10.0,  10.0,  10.0,  10.0, -10.0,  10.0, -10.0, -10.0,
-
-        -10.0, -10.0,  10.0, -10.0,  10.0,  10.0,  10.0,  10.0,  10.0,
-         10.0,  10.0,  10.0,  10.0, -10.0,  10.0, -10.0, -10.0,  10.0,
-
-        -10.0,  10.0, -10.0,  10.0,  10.0, -10.0,  10.0,  10.0,  10.0,
-         10.0,  10.0,  10.0, -10.0,  10.0,  10.0, -10.0,  10.0, -10.0,
-
-        -10.0, -10.0, -10.0, -10.0, -10.0,  10.0,  10.0, -10.0, -10.0,
-         10.0, -10.0, -10.0, -10.0, -10.0,  10.0,  10.0, -10.0,  10.0
-    ];
-
-    let mut vbo = 0;
-    unsafe {
-        gl::GenBuffers(1, &mut vbo);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER, (3 * 36 * mem::size_of::<GLfloat>()) as GLsizeiptr,
-            points.as_ptr() as *const GLvoid, gl::STATIC_DRAW
-        );
-    }
-
-    let mut vao = 0;
-    unsafe {
-        gl::GenVertexArrays(1, &mut vao);
-        gl::BindVertexArray(vao);
-        gl::EnableVertexAttribArray(0);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
-    }
-
-    vao
+    gp_sp: GLuint,           // ground plane shader programme
+    gp_view_mat_loc: GLint,  // view matrix location in gp_sp
+    gp_proj_mat_loc: GLint,  // projection matrix location in gp_sp
+    gui_sp: GLuint,          // 2d GUI panel shader programme
+    gui_scale_loc: GLint,    // scale factors for gui shader   
 }
 
-/* use stb_image to load an image file into memory, and then into one side of
-a cube-map texture. */
-fn load_cube_map_side(texture: GLuint, side_target: GLenum, file_name: &str) -> bool {
-    unsafe {
-        gl::BindTexture(gl::TEXTURE_CUBE_MAP, texture);
+fn init_app_state() -> AppState {
+    AppState {
+        g_viewport_width: 640,
+        g_viewport_height: 480,
+        view_mat: Mat4::identity(),
+        proj_mat: Mat4::identity(),
+        gp_sp: 0,
+        gp_view_mat_loc: -1,
+        gp_proj_mat_loc: -1,
+        gui_sp: 0,
+        gui_scale_loc: -1,
+    }
+}
+
+fn create_ground_plane_shaders(logger: &Logger, app: &mut AppState) {
+    // Here I used negative y from the buffer as the z value so that it was on
+    // the floor but also that the 'front' was on the top side. also note how I
+    // work out the texture coordinates, st, from the vertex point position.
+    let mut gp_vs_str = vec![0; 1024];
+    let mut gp_fs_str = vec![0; 1024];
+    if !parse_file_into_str(logger, GP_VS_FILE, &mut gp_vs_str, 1024) {
+        panic!("Failed to parse ground plane vertex shader file.");
     }
 
+    if !parse_file_into_str(logger, GP_FS_FILE, &mut gp_fs_str, 1024) {
+        panic!("Failed to parse ground plane fragment shader file.");
+    }
+    
+    unsafe {
+        let gp_vs = gl::CreateShader(gl::VERTEX_SHADER);
+        gl::ShaderSource(gp_vs, 1, &(gp_vs_str.as_ptr() as *const GLchar), ptr::null());
+        gl::CompileShader(gp_vs);
+        assert!(gp_vs > 0);
+
+        let gp_fs = gl::CreateShader(gl::FRAGMENT_SHADER);
+        gl::ShaderSource(gp_fs, 1, &(gp_fs_str.as_ptr() as *const GLchar), ptr::null());
+        gl::CompileShader(gp_fs);
+        assert!(gp_fs > 0);
+
+        let gp_sp = gl::CreateProgram();
+        gl::AttachShader(gp_sp, gp_vs);
+        gl::AttachShader(gp_sp, gp_fs);
+        gl::LinkProgram(gp_sp);
+        assert!(gp_sp > 0);
+
+        // Get uniform locations of camera view and projection matrices.
+        let gp_view_mat_loc = gl::GetUniformLocation(gp_sp, "view".as_ptr() as *const i8);
+        assert!(gp_view_mat_loc > -1);
+
+        let gp_proj_mat_loc = gl::GetUniformLocation(gp_sp, "proj".as_ptr() as *const i8);
+        assert!(gp_proj_mat_loc > -1);
+
+        // Set defaults for matrices
+        gl::UseProgram(gp_sp);
+        gl::UniformMatrix4fv(gp_view_mat_loc, 1, gl::FALSE, app.view_mat.as_ptr());
+        gl::UniformMatrix4fv(gp_proj_mat_loc, 1, gl::FALSE, app.proj_mat.as_ptr());
+
+        app.gp_sp = gp_sp;
+        app.gp_view_mat_loc = gp_view_mat_loc;
+        app.gp_proj_mat_loc = gp_proj_mat_loc;
+    }
+}
+
+fn create_gui_shaders(logger: &Logger, app: &mut AppState) {
+    // Note that I scaled down the size to 0.5 * the viewport size here.
+    let mut gui_vs_str = vec![0; 1024];
+    let mut gui_fs_str = vec![0; 1024];
+    if parse_file_into_str(logger, GUI_VS_FILE, &mut gui_vs_str, 1024) {
+        panic!("Failed to parse gui vertex shader file.");
+    }
+
+    if parse_file_into_str(logger, GUI_FS_FILE, &mut gui_fs_str, 1024) {
+        panic!("Failed to parse gui fragment shader file.");
+    }   
+
+    unsafe {
+        let gui_vs = gl::CreateShader(gl::VERTEX_SHADER);
+        gl::ShaderSource(gui_vs, 1, &(gui_vs_str.as_ptr() as *const GLchar), ptr::null());
+        gl::CompileShader(gui_vs);
+        assert!(gui_vs > 0);
+
+        let gui_fs = gl::CreateShader(gl::FRAGMENT_SHADER);
+        gl::ShaderSource(gui_fs, 1, &(gui_fs_str.as_ptr() as *const GLchar), ptr::null());
+        gl::CompileShader(gui_fs);
+        assert!(gui_fs > 0);
+
+        let gui_sp = gl::CreateProgram();
+        gl::AttachShader(gui_sp, gui_vs);
+        gl::AttachShader(gui_sp, gui_fs);
+        gl::LinkProgram(gui_sp);
+        assert!(gui_sp > 0);
+        let gui_scale_loc = gl::GetUniformLocation(gui_sp, "gui_scale".as_ptr() as *const i8);
+        assert!(gui_scale_loc > -1);
+
+        app.gui_sp = gui_sp;
+        app.gui_scale_loc = gui_scale_loc;
+    }
+}
+
+fn load_texture(file_name: &str, tex: &mut GLuint) -> bool {
     let force_channels = 4;
-    let image_data = match image::load_with_depth(file_name, force_channels, false) {
+    let mut image_data = match image::load_with_depth(file_name, force_channels, false) {
         LoadResult::ImageU8(image_data) => image_data,
         LoadResult::Error(_) => {
             eprintln!("ERROR: could not load {}", file_name);
@@ -120,51 +178,55 @@ fn load_cube_map_side(texture: GLuint, side_target: GLenum, file_name: &str) -> 
         eprintln!("WARNING: texture {} is not power-of-2 dimensions", file_name);
     }
 
-    // copy image data into 'target' side of cube map
+    let width_in_bytes = 4 *width;
+    let half_height = height / 2;
+    for row in 0..half_height {
+        for col in 0..width_in_bytes {
+            let temp = image_data.data[row * width_in_bytes + col];
+            image_data.data[row * width_in_bytes + col] = image_data.data[((height - row - 1) * width_in_bytes) + col];
+            image_data.data[((height - row - 1) * width_in_bytes) + col] = temp;
+        }
+    }
+
     unsafe {
+        gl::GenTextures(1, tex);
+        gl::ActiveTexture(gl::TEXTURE0);
+        gl::BindTexture(gl::TEXTURE_2D, *tex);
         gl::TexImage2D(
-            side_target, 0, gl::RGBA as i32, width as i32, height as i32, 0, 
-            gl::RGBA, gl::UNSIGNED_BYTE,
+            gl::TEXTURE_2D, 0, gl::RGBA as i32, width as i32, height as i32, 0, 
+            gl::RGBA, gl::UNSIGNED_BYTE, 
             image_data.data.as_ptr() as *const GLvoid
         );
+        gl::GenerateMipmap(gl::TEXTURE_2D);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as i32);
     }
 
-    true
+    let mut max_aniso = 0.0;
+    // TODO: Check this against my dependencies.
+    unsafe {
+        gl::GetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut max_aniso);
+        // Set the maximum!
+        gl::TexParameterf(gl::TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_aniso);
+    }
+
+    return true;
 }
 
-/* load all 6 sides of the cube-map from images, then apply formatting to the
-final texture */
-fn create_cube_map(
-    front: &str, back: &str, top: &str,
-    bottom: &str, left: &str, right: &str, tex_cube: &mut GLuint) {
-    
-    // generate a cube-map texture to hold all the sides
+/* we will tell GLFW to run this function whenever the window is resized */
+fn glfw_framebuffer_size_callback(context: &mut GLContext, app: &mut AppState, width: u32, height: u32) {
+    context.width = width;
+    context.height = height;
+    /* update any perspective matrices used here */
+    app.proj_mat = Mat4::perspective(67.0, context.width as f32 / context.height as f32, 0.1, 100.0);
     unsafe {
-        gl::ActiveTexture(gl::TEXTURE0);
-        gl::GenTextures(1, tex_cube);
-    }
-
-    // load each image and copy into a side of the cube-map texture
-    load_cube_map_side(*tex_cube, gl::TEXTURE_CUBE_MAP_NEGATIVE_Z, front);
-    load_cube_map_side(*tex_cube, gl::TEXTURE_CUBE_MAP_POSITIVE_Z, back);
-    load_cube_map_side(*tex_cube, gl::TEXTURE_CUBE_MAP_POSITIVE_Y, top);
-    load_cube_map_side(*tex_cube, gl::TEXTURE_CUBE_MAP_NEGATIVE_Y, bottom);
-    load_cube_map_side(*tex_cube, gl::TEXTURE_CUBE_MAP_NEGATIVE_X, left);
-    load_cube_map_side(*tex_cube, gl::TEXTURE_CUBE_MAP_POSITIVE_X, right);
-    
-    // format cube map texture
-    unsafe {
-        gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
-        gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
-        gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_R, gl::CLAMP_TO_EDGE as i32);
-        gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
-        gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+        gl::Viewport(0, 0, context.width as i32, context.height as i32);
     }
 }
 
-#[allow(non_snake_case)]
 fn main() {
-    /*--------------------------------START OPENGL--------------------------------*/
     let logger = restart_gl_log(GL_LOG_FILE);
     // Start a GL context and O/S window using the GLFW helper library.
     let mut context = match start_gl(&logger) {
@@ -176,133 +238,77 @@ fn main() {
         }
     };
 
-    /*---------------------------------CUBE MAP-----------------------------------*/
-    let cube_vao = make_big_cube();
-    assert!(cube_vao > 0);
+    let mut app = init_app_state();
 
-    let mut cube_map_texture = 0;
-    create_cube_map(FRONT, BACK, TOP, BOTTOM, LEFT, RIGHT, &mut cube_map_texture);
-    assert!(cube_map_texture > 0);
+    // create a 2d panel. from 2 triangles = 6 xy coords.
+    let points: [f32; 12] = [
+        -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0
+    ];
 
-    /*------------------------------CREATE GEOMETRY------------------------------*/
-    let mesh = match obj_parser::load_obj_file(MESH_FILE) {
-        Ok(val) => val,
-        Err(e) => {
-            logger.log_err(&format!("ERROR: loading mesh file. Loader returned error\n{}", e));
-            process::exit(1);
-        }
-    };
-
-    let g_vp = mesh.points;
-    let g_vn = mesh.normals;
-    let g_point_count = mesh.point_count;
+    // for the ground plane we can just re-use panel points but y is now z
+    let mut vp_vbo = 0;
+    unsafe {
+        gl::GenBuffers(1, &mut vp_vbo);
+        gl::BindBuffer(gl::ARRAY_BUFFER, vp_vbo);
+        gl::BufferData(
+            gl::ARRAY_BUFFER, (points.len() * mem::size_of::<GLfloat>()) as GLsizeiptr, 
+            points.as_ptr() as *const GLvoid, gl::STATIC_DRAW
+        );
+    }
+    assert!(vp_vbo > 0);
 
     let mut vao = 0;
     unsafe {
         gl::GenVertexArrays(1, &mut vao);
         gl::BindVertexArray(vao);
+        // NOTE: vertex buffer is already bound
+        gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, 0, ptr::null());
+        gl::EnableVertexAttribArray(0);
     }
     assert!(vao > 0);
 
-    let mut points_vbo = 0;
-    unsafe {
-        gl::GenBuffers(1, &mut points_vbo);
-        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER, (3 * g_point_count * mem::size_of::<GLfloat>()) as GLsizeiptr, 
-            g_vp.as_ptr() as *const GLvoid, gl::STATIC_DRAW
-        );
-        gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
-        gl::EnableVertexAttribArray(0);
-    }
-    assert!(points_vbo > 0);
-
-    let mut normals_vbo = 0;
-    unsafe {
-        gl::GenBuffers( 1, &mut normals_vbo);
-        gl::BindBuffer(gl::ARRAY_BUFFER, normals_vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER, (3 * g_point_count * mem::size_of::<GLfloat>()) as GLsizeiptr, 
-            g_vn.as_ptr() as *const GLvoid, gl::STATIC_DRAW
-        );
-        gl::VertexAttribPointer(1, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
-        gl::EnableVertexAttribArray(1);
-    }
-    assert!(normals_vbo > 0);
-
-    /*-------------------------------CREATE SHADERS-------------------------------*/
-    let monkey_sp = create_programme_from_files(&logger, MONKEY_VERT_FILE, MONKEY_FRAG_FILE);
-    assert!(monkey_sp > 0);
-
-    let monkey_M_location = unsafe {
-        gl::GetUniformLocation(monkey_sp, "M".as_ptr() as *const i8)
-    };
-    //assert!(monkey_M_location > -1);
-    let monkey_V_location = unsafe { 
-        gl::GetUniformLocation(monkey_sp, "V".as_ptr() as *const i8)
-    };
-    assert!(monkey_V_location > -1);
-    let monkey_P_location = unsafe { 
-        gl::GetUniformLocation(monkey_sp, "P".as_ptr() as *const i8)
-    };
-    assert!(monkey_P_location > -1);
-
-    // cube-map shaders
-    let cube_sp = create_programme_from_files(&logger, CUBE_VERT_FILE, CUBE_FRAG_FILE);
-    assert!(cube_sp > 0);
-    // note that this view matrix should NOT contain camera translation.
-    let cube_V_location = unsafe {
-        gl::GetUniformLocation(cube_sp, "V".as_ptr() as *const i8)
-    };
-    assert!(cube_V_location > -1);
-    let cube_P_location = unsafe {
-        gl::GetUniformLocation(cube_sp, "P".as_ptr() as *const i8)
-    };
-    assert!(cube_P_location > -1);
-
-
-    /*-------------------------------CREATE CAMERA--------------------------------*/
-    // input variables
-    let near = 0.1;                                  // clipping plane
-    let far = 100.0;                                 // clipping plane
-    let fov = 67.0;                                  // convert 67 degrees to radians
-    let aspect = context.width as f32 / context.height as f32; // aspect ratio
-    let proj_mat = Mat4::perspective(fov, aspect, near, far);
-
-    // matrix components
-    let cam_speed: GLfloat = 3.0;             // 1 unit per second
-    let cam_heading_speed: GLfloat = 50.0;        // 30 degrees per second
-    let mut cam_pos: Vec3 = math::vec3((0.0, 0.0, 5.0)); // don't start at zero, or we will be too close
-    let mut cam_heading: GLfloat = 0.0;               // y-rotation in degrees
-    let mut mat_trans = Mat4::identity().translate(&math::vec3((-cam_pos.v[0], -cam_pos.v[1], -cam_pos.v[2])));
-    let mut mat_rot = Mat4::identity().rotate_y_deg(-cam_heading);
-    let mut q = Versor::from_axis_deg(-cam_heading, 0.0, 1.0, 0.0);
-    let mut view_mat = mat_rot * mat_trans;
-
+    // create a 3d camera to move in 3d so that we can tell that the panel is 2d
+    // keep track of some useful vectors that can be used for keyboard movement
     let mut fwd = math::vec4((0.0, 0.0, -1.0, 0.0));
-    let mut rgt = math::vec4((1.0, 0.0, 0.0, 0.0));
-    let mut up = math::vec4((0.0, 1.0, 0.0, 0.0));
+    let mut rgt = math::vec4((1.0, 0.0,  0.0, 0.0));
+    let mut up  = math::vec4((0.0, 1.0,  0.0, 0.0));
+    let mut cam_pos = math::vec3((0.0, 1.0, 5.0));
+    let mut mat_trans_inv = Mat4::identity().translate(&cam_pos);
 
-    /*---------------------------SET RENDERING DEFAULTS---------------------------*/
+    // point slightly downwards to see the plane
+    let mut q = Versor::from_axis_deg(0.0, 1.0, 0.0, 0.0);
+    let mut mat_rot_inv = q.to_mat4();
+    // combine the inverse rotation and transformation to make a view matrix
+    let mut view = mat_rot_inv.inverse() * mat_trans_inv.inverse();
+    // projection matrix
+    let mut proj = Mat4::perspective(67.0, context.width as f32 / context.height as f32, 0.1, 100.0);
+    let cam_speed = 3.0;          // 1 unit per second
+    let cam_heading_speed = 50.0; // 30 degrees per second
+
+    create_ground_plane_shaders(&logger, &mut app);
+    create_gui_shaders(&logger, &mut app);
+
+    // textures for ground plane and gui
+    let mut gp_tex = 0;
+    load_texture("src/tile2-diamonds256x256.png", &mut gp_tex);
+    assert!(gp_tex > 0);
+
+    let mut gui_tex = 0;
+    load_texture("src/skulluvmap.png", &mut gui_tex);
+    assert!(gui_tex > 0);
+
     unsafe {
-        gl::UseProgram(monkey_sp);
-        gl::UniformMatrix4fv(monkey_V_location, 1, gl::FALSE, view_mat.as_ptr());
-        gl::UniformMatrix4fv(monkey_P_location, 1, gl::FALSE, proj_mat.as_ptr());
-        gl::UseProgram(cube_sp);
-        gl::UniformMatrix4fv(cube_V_location, 1, gl::FALSE, mat_rot.as_ptr());
-        gl::UniformMatrix4fv(cube_P_location, 1, gl::FALSE, proj_mat.as_ptr());
+        // rendering defaults
+        gl::DepthFunc(gl::LESS);   // set depth function but don't enable yet
+        gl::Enable(gl::CULL_FACE); // cull face
+        gl::CullFace(gl::BACK);    // cull back face
+        gl::FrontFace(gl::CCW);    // GL_CCW for counter clock-wise
     }
 
-    // unique model matrix for each sphere
-    let mut model_mat = Mat4::identity();
-
+    // absolute panel dimensions in pixels
+    let panel_width = 256.0;
+    let panel_height = 256.0;
     unsafe {
-        gl::Enable(gl::DEPTH_TEST); // enable depth-testing
-        gl::DepthFunc(gl::LESS);      // depth-testing interprets a smaller value as "closer"
-        gl::Enable(gl::CULL_FACE);   // cull face
-        gl::CullFace(gl::BACK);       // cull back face
-        gl::FrontFace(gl::CCW); // set counter-clock-wise vertex order to mean the front
-        gl::ClearColor(0.2, 0.2, 0.2, 1.0); // grey background to help spot mistakes
         gl::Viewport(0, 0, context.width as i32, context.height as i32);
     }
 
@@ -315,23 +321,28 @@ fn main() {
         update_fps_counter(&mut context);
 
         unsafe {
-            // Wipe the drawing surface clear.
+            // wipe the drawing surface clear
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-            
-            // render a sky-box using the cube-map texture
-            gl::DepthMask(gl::FALSE);
-            gl::UseProgram(cube_sp);
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_CUBE_MAP, cube_map_texture);
-            gl::BindVertexArray(cube_vao);
-            gl::DrawArrays(gl::TRIANGLES, 0, 36);
-            gl::DepthMask(gl::TRUE);
 
-            gl::UseProgram(monkey_sp);
+            // draw ground plane. note: depth test is enabled here
+            gl::Enable(gl::DEPTH_TEST);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, gp_tex);
+            gl::UseProgram(app.gp_sp);
             gl::BindVertexArray(vao);
-            gl::UniformMatrix4fv(monkey_M_location, 1, gl::FALSE, model_mat.as_ptr());
-            gl::DrawArrays(gl::TRIANGLES, 0, g_point_count as i32);
-            // update other events like input handling
+            gl::DrawArrays(gl::TRIANGLES, 0, 6);
+
+            // draw GUI panel. note: depth test is disabled here and drawn AFTER scene
+            gl::Disable(gl::DEPTH_TEST);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, gui_tex);
+            gl::UseProgram(app.gui_sp);
+            // resize panel to size in pixels
+            let x_scale = panel_width / (context.width as f32);
+            let y_scale = panel_height / (context.height as f32);
+            gl::Uniform2f(app.gui_scale_loc, x_scale, y_scale);
+            gl::BindVertexArray(vao);
+            gl::DrawArrays(gl::TRIANGLES, 0, 6);
         }
 
         context.glfw.poll_events();
@@ -441,27 +452,21 @@ fn main() {
 
         // update view matrix
         if cam_moved {
-            cam_heading += cam_yaw;
-
             // re-calculate local axes so can move fwd in dir cam is pointing
-            mat_rot = q.to_mat4();
-            fwd = mat_rot * math::vec4((0.0, 0.0, -1.0, 0.0));
-            rgt = mat_rot * math::vec4((1.0, 0.0,  0.0, 0.0));
-            up  = mat_rot * math::vec4((0.0, 1.0,  0.0, 0.0));
+            mat_rot_inv = q.to_mat4();
+            fwd = mat_rot_inv * math::vec4((0.0, 0.0, -1.0, 0.0));
+            rgt = mat_rot_inv * math::vec4((1.0, 0.0,  0.0, 0.0));
+            up  = mat_rot_inv * math::vec4((0.0, 1.0,  0.0, 0.0));
 
-            cam_pos = cam_pos + math::vec3(&fwd) * (-move_to.v[2]);
-            cam_pos = cam_pos + math::vec3(&up) * (move_to.v[1]);
-            cam_pos = cam_pos + math::vec3(&rgt) * (move_to.v[0]);
-            mat_trans = Mat4::identity().translate(&math::vec3(cam_pos));
+            cam_pos = cam_pos + math::vec3(fwd) * -move_to.v[2];
+            cam_pos = cam_pos + math::vec3(up)  *  move_to.v[1];
+            cam_pos = cam_pos + math::vec3(rgt) *  move_to.v[0];
+            mat_trans_inv = Mat4::identity().translate(&cam_pos);
 
-            view_mat = mat_rot.inverse() * mat_trans.inverse();
+            view = mat_rot_inv.inverse() * mat_trans_inv.inverse();
             unsafe {
-                gl::UseProgram( monkey_sp );
-                gl::UniformMatrix4fv( monkey_V_location, 1, gl::FALSE, view_mat.as_ptr());
-
-                // cube-map view matrix has rotation, but not translation
-                gl::UseProgram(cube_sp);
-                gl::UniformMatrix4fv(cube_V_location, 1, gl::FALSE, mat_rot.inverse().as_ptr());
+                gl::UseProgram(app.gp_sp);
+                gl::UniformMatrix4fv(app.gp_view_mat_loc, 1, gl::FALSE, view.as_ptr());
             }
         }
 

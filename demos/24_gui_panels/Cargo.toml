@@ -1,5 +1,5 @@
 [package]
-name = "tesselation_shaders"
+name = "gui_panels"
 version = "0.1.0"
 authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 
