@@ -124,11 +124,11 @@ fn create_gui_shaders(logger: &Logger, app: &mut AppState) {
     // Note that I scaled down the size to 0.5 * the viewport size here.
     let mut gui_vs_str = vec![0; 1024];
     let mut gui_fs_str = vec![0; 1024];
-    if parse_file_into_str(logger, GUI_VS_FILE, &mut gui_vs_str, 1024) {
+    if !parse_file_into_str(logger, GUI_VS_FILE, &mut gui_vs_str, 1024) {
         panic!("Failed to parse gui vertex shader file.");
     }
 
-    if parse_file_into_str(logger, GUI_FS_FILE, &mut gui_fs_str, 1024) {
+    if !parse_file_into_str(logger, GUI_FS_FILE, &mut gui_fs_str, 1024) {
         panic!("Failed to parse gui fragment shader file.");
     }   
 
